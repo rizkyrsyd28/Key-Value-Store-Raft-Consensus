@@ -12,7 +12,7 @@ type RaftNode struct {
 	address              _struct.Address
 	nodeType             enum.NodeType
 	log                  []string
-	app                  Application
+	app                  KVStore
 	electionTerm         int
 	clusterAddrList      []_struct.Address
 	clusterLeaderAddress _struct.Address

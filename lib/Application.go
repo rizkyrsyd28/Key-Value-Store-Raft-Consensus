@@ -1,27 +1,49 @@
 package lib
 
-import "fmt"
-
-type Application struct {
-	data map[string]interface{}
+type KVStore struct {
+	store map[string]string
 }
 
-func (app Application) Ping() {
-	fmt.Println("Method Not Implemented")
+func NewKVStore() *KVStore {
+	return &KVStore{
+		store: make(map[string]string),
+	}
 }
 
-func (app Application) Get() {
-	fmt.Println("Method Not Implemented")
+func (kv *KVStore) Ping() string {
+	return "PONG"
 }
 
-func (app Application) Set() {
-	fmt.Println("Method Not Implemented")
+func (kv *KVStore) Get(key string) string {
+	value, ok := kv.store[key]
+	if !ok {
+		return ""
+	}
+	return value
 }
 
-func (app Application) Append() {
-	fmt.Println("Method Not Implemented")
+func (kv *KVStore) Set(key, value string) string {
+	kv.store[key] = value
+	return "OK"
 }
 
-func (app Application) Del() {
-	fmt.Println("Method Not Implemented")
+func (kv *KVStore) Strlen(key string) int {
+	value := kv.Get(key)
+	return len(value)
+}
+
+func (kv *KVStore) Delete(key string) string {
+	value, ok := kv.store[key]
+	if !ok {
+		return ""
+	}
+	delete(kv.store, key)
+	return value
+}
+
+func (kv *KVStore) Append(key, value string) string {
+	existing := kv.Get(key)
+	new_value := existing + value
+	kv.store[key] = new_value
+	return "OK"
 }
