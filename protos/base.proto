@@ -1,0 +1,6 @@
+syntax="proto3";
+package dark_syster;
+
+option go_package = "/lib/pb";
+
+message Empty {}

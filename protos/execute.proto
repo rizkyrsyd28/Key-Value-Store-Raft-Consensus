@@ -1,0 +1,28 @@
+syntax="proto3";
+package dark_syster;
+
+import "protos/base.proto";
+
+option go_package = "/lib/pb";
+
+service ExecuteService {
+   rpc Ping(Empty) returns(Response);
+   rpc Get(KeyRequest) returns(Response);
+   rpc Set(KeyValueRequest) returns(Response);
+   rpc StrLn(KeyRequest) returns(Response);
+   rpc Del(KeyRequest) returns(Response);
+   rpc Append(KeyValueRequest) returns(Response);
+}
+
+message Response {
+    string value = 1;
+}
+
+message KeyRequest {
+    string key = 1;
+}
+
+message KeyValueRequest {
+    string key = 1;
+    string value = 2;
+}
