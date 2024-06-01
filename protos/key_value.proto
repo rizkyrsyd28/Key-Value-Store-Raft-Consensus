@@ -5,7 +5,7 @@ import "protos/base.proto";
 
 option go_package = "/lib/pb";
 
-service ExecuteService {
+service KeyValueService {
    rpc Ping(Empty) returns(Response);
    rpc Get(KeyRequest) returns(Response);
    rpc Set(KeyValueRequest) returns(Response);

@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 
-	"github.com/Sister20/if3230-tubes-dark-syster/lib"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/service"
+	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/struct"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 )
+
+var address _struct.Address
 
 func UnaryInterceptor(
 	ctx context.Context,
@@ -34,14 +39,23 @@ func UnaryInterceptor(
 }
 
 func main() {
-	netListen, err := net.Listen("tcp", ":8001")
+
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: go run server.go <server ip> <server port> <time?>")
+		return
+	}
+
+	address = *_struct.NewAddress(os.Args[1], os.Args[2])
+
+	netListen, err := net.Listen("tcp", address.ToString())
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
 	server := grpc.NewServer(grpc.UnaryInterceptor(UnaryInterceptor))
-	ExecuteService := lib.ExecuteServiceImpl{}
-	pb.RegisterExecuteServiceServer(server, &ExecuteService)
+
+	ExecuteService := service.KeyValueServiceImpl{}
+	pb.RegisterKeyValueServiceServer(server, &ExecuteService)
 
 	log.Println("Server Started At ", netListen.Addr())
 

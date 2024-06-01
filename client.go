@@ -16,12 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	startTime time.Time
-	endTime   time.Time
-	duration  time.Duration
-	address   _struct.Address
-)
+var address _struct.Address
 
 func main() {
 	if len(os.Args) < 3 {
@@ -37,17 +32,12 @@ func main() {
 	enableTime := false
 
 	if len(os.Args) == 4 {
-		if os.Args[1] == "time" {
+		if os.Args[3] == "time" {
 			enableTime = true
 		}
 	}
 
-	port, err := strconv.Atoi(os.Args[2])
-	if err != nil {
-		log.Fatalf("Failed to convert address port: %v", err)
-	}
-
-	address = *_struct.NewAddress(os.Args[1], port)
+	address = *_struct.NewAddress(os.Args[1], os.Args[2])
 
 	conn, err := grpc.NewClient(address.IP+":"+strconv.Itoa(address.Port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -55,19 +45,17 @@ func main() {
 	}
 	defer conn.Close()
 
-	client := pb.NewExecuteServiceClient(conn)
+	client := pb.NewKeyValueServiceClient(conn)
 
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		// fmt.Print("Enter command: \n> ")
 		fmt.Printf("%s:%d> ", address.IP, address.Port)
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			log.Fatalf("Failed to read input: %v", err)
 		}
 
-		// Remove newline character
 		input = strings.TrimSpace(input)
 
 		command := strings.Fields(input)
@@ -81,24 +69,19 @@ func main() {
 
 			ctx := context.Background()
 
-			if enableTime {
-				startTime = time.Now()
+			function := func() {
+				response, err := client.Ping(ctx, &pb.Empty{})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+
+				fmt.Printf("%s\n", response.GetValue())
 			}
 
-			response, err := client.Ping(ctx, &pb.Empty{})
-			if err != nil {
-				log.Fatalf("Response Error %v", err)
-			}
-
 			if enableTime {
-				endTime = time.Now()
-				duration = endTime.Sub(startTime)
-			}
-
-			fmt.Printf("%s\n", response.GetValue())
-
-			if enableTime {
-				fmt.Printf("Response Time: %v\n", duration)
+				TimeWrap(function)
+			} else {
+				function()
 			}
 
 		case "get":
@@ -109,27 +92,21 @@ func main() {
 
 			ctx := context.Background()
 
-			if enableTime {
-				startTime = time.Now()
+			function := func() {
+				response, err := client.Get(ctx, &pb.KeyRequest{Key: command[1]})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("%s\n", response.GetValue())
 			}
-
-			response, err := client.Get(ctx, &pb.KeyRequest{Key: command[1]})
-			if err != nil {
-				log.Fatalf("Response Error %v", err)
-			}
-
-			if enableTime {
-				endTime = time.Now()
-				duration = endTime.Sub(startTime)
-			}
-
-			fmt.Printf("%s\n", response.GetValue())
 
 			if enableTime {
-				fmt.Printf("Response Time: %v\n", duration)
+				TimeWrap(function)
+			} else {
+				function()
 			}
 
-		case "put":
+		case "set":
 			if len(command) != 3 {
 				fmt.Println("Invalid put command. Format: put <key> <value>")
 				continue
@@ -137,24 +114,18 @@ func main() {
 
 			ctx := context.Background()
 
-			if enableTime {
-				startTime = time.Now()
+			function := func() {
+				response, err := client.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("%s\n", response.GetValue())
 			}
 
-			response, err := client.Get(ctx, &pb.KeyRequest{Key: command[1]})
-			if err != nil {
-				log.Fatalf("Response Error %v", err)
-			}
-
 			if enableTime {
-				endTime = time.Now()
-				duration = endTime.Sub(startTime)
-			}
-
-			fmt.Printf("%s\n", response.GetValue())
-
-			if enableTime {
-				fmt.Printf("Response Time: %v\n", duration)
+				TimeWrap(function)
+			} else {
+				function()
 			}
 
 		case "quit":
@@ -165,4 +136,16 @@ func main() {
 			fmt.Println("Unknown command")
 		}
 	}
+}
+
+func TimeWrap(function func()) {
+
+	startTime := time.Now()
+
+	function()
+
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
+
+	fmt.Printf("Response Time: %v\n", duration)
 }
