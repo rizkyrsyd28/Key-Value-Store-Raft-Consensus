@@ -7,7 +7,7 @@ type Address struct {
 	Port int
 }
 
-func New(ip string, port int) *Address {
+func NewAddress(ip string, port int) *Address {
 	return &Address{IP: ip, Port: port}
 }
 
