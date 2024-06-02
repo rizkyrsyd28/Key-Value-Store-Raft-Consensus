@@ -7,4 +7,5 @@ const (
 	ELECTION_TIMEOUT_MIN RaftConst = 2
 	ELECTION_TIMEOUT_MAX RaftConst = 3
 	RPC_TIMEOUT          RaftConst = 0.5
+	IDLE                 RaftConst = 0
 )

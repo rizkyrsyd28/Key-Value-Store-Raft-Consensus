@@ -41,7 +41,7 @@ func UnaryInterceptor(
 func main() {
 
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run server.go <server ip> <server port> <time?>")
+		fmt.Println("Usage: go run server.go <server ip> <server port>")
 		return
 	}
 

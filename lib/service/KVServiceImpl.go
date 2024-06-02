@@ -11,7 +11,7 @@ type KeyValueServiceImpl struct {
 }
 
 func (kv *KeyValueServiceImpl) Ping(context.Context, *pb.Empty) (*pb.Response, error) {
-	response := pb.Response{Value: "Pong"}
+	response := pb.Response{Value: "PONG"}
 	return &response, nil
 }
 

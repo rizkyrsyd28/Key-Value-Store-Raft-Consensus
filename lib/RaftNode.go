@@ -3,9 +3,9 @@ package lib
 import (
 	"errors"
 	"fmt"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/struct"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/enum"
+	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/struct"
 )
 
 type RaftNode struct {
@@ -16,6 +16,22 @@ type RaftNode struct {
 	electionTerm         int
 	clusterAddrList      []_struct.Address
 	clusterLeaderAddress _struct.Address
+}
+
+func New(app *KVStore, address *_struct.Address, contactAddress _struct.Address) *RaftNode {
+	raft := &RaftNode{
+		app:             *app,
+		address:         *address,
+		nodeType:        enum.LEADER,
+		electionTerm:    0,
+		clusterAddrList: make([]_struct.Address, 0),
+	}
+
+	// if contactAddress == nil {
+
+	// }
+
+	return raft
 }
 
 func (raft RaftNode) initAsLeader() {

@@ -1,0 +1,11 @@
+syntax="proto3";
+package dark_syster;
+
+import "protos/base.proto";
+
+option go_package = "/lib/pb";
+
+service RaftService {
+    // Exampel 
+    rpc RequestVote(Empty) returns(Empty);
+}
