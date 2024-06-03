@@ -2,12 +2,18 @@ package service
 
 import (
 	"context"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 )
 
 type KeyValueServiceImpl struct {
 	pb.UnimplementedKeyValueServiceServer
+	node *raft.RaftNode
+}
+
+func NewKVService(_node *raft.RaftNode) *KeyValueServiceImpl {
+	return &KeyValueServiceImpl{node: _node}
 }
 
 func (kv *KeyValueServiceImpl) Ping(context.Context, *pb.Empty) (*pb.Response, error) {

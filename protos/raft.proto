@@ -6,6 +6,45 @@ import "protos/base.proto";
 option go_package = "/lib/pb";
 
 service RaftService {
-    // Exampel 
-    rpc RequestVote(Empty) returns(Empty);
+    rpc ApplyMembership(ApplyMembershipRequest) returns(ApplyMembershipResponse);
+    rpc RequestVote(RequestVoteRequest) returns(RequestVoteResponse);
+    rpc SendHeartbeat(HeartbeatRequest) returns(HeartbeatResponse);
+}
+
+message ApplyMembershipRequest {
+    bool insert = 1;
+}
+
+message ApplyMembershipResponse {
+    repeated string     log                 = 1;
+    repeated Address    clusterAddressList  = 2;
+}
+
+message RequestVoteRequest {
+    Address votedFor    = 1;
+    uint32  term        = 2;
+    uint64  logLength   = 3;
+    uint64  logTerm     = 4;
+}
+
+message RequestVoteResponse {
+    Address nodeAddress = 1;
+    uint64  currentTerm = 2;
+    bool    granted     = 3;
+}
+
+message HeartbeatRequest {
+    Address             leaderAddress   = 1;
+    uint64              term            = 2;
+    uint64              prefixLength    = 3;
+    uint64              prefixTerm      = 4;
+    uint64              commitLength    = 5;
+    repeated string     suffix          = 6;
+    repeated Address    clusterAddress  = 7;
+}
+
+message HeartbeatResponse {
+    uint32  ack             = 1;
+    uint64  term            = 2;
+    bool    successAppend   = 3;
 }

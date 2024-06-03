@@ -58,13 +58,71 @@ func (*Empty) Descriptor() ([]byte, []int) {
 	return file_protos_base_proto_rawDescGZIP(), []int{0}
 }
 
+type Address struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	IP   string `protobuf:"bytes,1,opt,name=IP,proto3" json:"IP,omitempty"`
+	Port uint32 `protobuf:"varint,2,opt,name=Port,proto3" json:"Port,omitempty"`
+}
+
+func (x *Address) Reset() {
+	*x = Address{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protos_base_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Address) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Address) ProtoMessage() {}
+
+func (x *Address) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_base_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Address.ProtoReflect.Descriptor instead.
+func (*Address) Descriptor() ([]byte, []int) {
+	return file_protos_base_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Address) GetIP() string {
+	if x != nil {
+		return x.IP
+	}
+	return ""
+}
+
+func (x *Address) GetPort() uint32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
 var File_protos_base_proto protoreflect.FileDescriptor
 
 var file_protos_base_proto_rawDesc = []byte{
 	0x0a, 0x11, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x2f, 0x62, 0x61, 0x73, 0x65, 0x2e, 0x70, 0x72,
 	0x6f, 0x74, 0x6f, 0x12, 0x0b, 0x64, 0x61, 0x72, 0x6b, 0x5f, 0x73, 0x79, 0x73, 0x74, 0x65, 0x72,
-	0x22, 0x07, 0x0a, 0x05, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42, 0x09, 0x5a, 0x07, 0x2f, 0x6c, 0x69,
-	0x62, 0x2f, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x22, 0x07, 0x0a, 0x05, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x2d, 0x0a, 0x07, 0x41, 0x64, 0x64,
+	0x72, 0x65, 0x73, 0x73, 0x12, 0x0e, 0x0a, 0x02, 0x49, 0x50, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x02, 0x49, 0x50, 0x12, 0x12, 0x0a, 0x04, 0x50, 0x6f, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x0d, 0x52, 0x04, 0x50, 0x6f, 0x72, 0x74, 0x42, 0x09, 0x5a, 0x07, 0x2f, 0x6c, 0x69, 0x62,
+	0x2f, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -79,9 +137,10 @@ func file_protos_base_proto_rawDescGZIP() []byte {
 	return file_protos_base_proto_rawDescData
 }
 
-var file_protos_base_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_protos_base_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_protos_base_proto_goTypes = []interface{}{
-	(*Empty)(nil), // 0: dark_syster.Empty
+	(*Empty)(nil),   // 0: dark_syster.Empty
+	(*Address)(nil), // 1: dark_syster.Address
 }
 var file_protos_base_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -109,6 +168,18 @@ func file_protos_base_proto_init() {
 				return nil
 			}
 		}
+		file_protos_base_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Address); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -116,7 +187,7 @@ func file_protos_base_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_protos_base_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

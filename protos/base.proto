@@ -4,3 +4,8 @@ package dark_syster;
 option go_package = "/lib/pb";
 
 message Empty {}
+
+message Address {
+    string  IP      = 1;
+    uint32  Port    = 2;
+}

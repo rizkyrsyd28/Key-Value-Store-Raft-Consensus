@@ -1,7 +1,7 @@
 package test
 
 import (
-	. "github.com/Sister20/if3230-tubes-dark-syster/lib"
+	. "github.com/Sister20/if3230-tubes-dark-syster/lib/app"
 	"testing"
 )
 
@@ -67,7 +67,7 @@ func TestKVStrLen(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("ab", "yan")
 	length := kv.Strlen("ab")
-	if(length != 3) {
+	if length != 3 {
 		t.Fatalf("Err determining value length")
 	}
 }
@@ -86,7 +86,7 @@ func TestKVAppend(t *testing.T) {
 	kv.Set("miya", " BI")
 	kv.Append("miya", "segsual")
 	result := kv.Get("miya")
-	if( result != " BIsegsual") {
+	if result != " BIsegsual" {
 		t.Fatalf("Error appending value")
 	}
 }

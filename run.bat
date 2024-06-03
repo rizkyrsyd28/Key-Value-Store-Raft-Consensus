@@ -16,7 +16,7 @@ if "%1" == "protobuf" (
     exit /b 0
 )
 
-:: Generate Server
+:: Start Server
 if "%1" == "server" (
     if "%2" == "" (
         echo Error: Server IP Not Found, Usage: ./run.bat server ^<server ip^> ^<server port^> 
@@ -31,7 +31,7 @@ if "%1" == "server" (
     exit /b 0
 )
 
-:: Generate Server
+:: Start Client
 if "%1" == "client" (
     if "%2" == "" (
         echo Error: Server IP Not Found, Usage: ./run.bat client ^<server ip^> ^<server port^> time?
@@ -51,6 +51,7 @@ if "%1" == "client" (
     exit /b 0
 )
 
+:: Start Testing
 if "%1" == "test" (
     if "%2" == "" (
         echo Start Test All Unit Test
