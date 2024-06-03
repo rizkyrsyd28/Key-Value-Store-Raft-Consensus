@@ -1,8 +1,11 @@
 package test
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
@@ -84,4 +87,97 @@ func equalLogs(expected, actual logger.RaftNodeLog) bool {
 	}
 
 	return true
+}
+
+func TestSystemLog(t *testing.T) {
+	// Disable date time flag
+	logger.SetSystemLogFlags(0)
+    var buf bytes.Buffer
+    logger.DebugLogger.SetOutput(&buf)
+    logger.InfoLogger.SetOutput(&buf)
+    logger.WarningLogger.SetOutput(&buf)
+    logger.ErrorLogger.SetOutput(&buf)
+    logger.FatalLogger.SetOutput(&buf)
+
+    // Log some messages
+    logger.DebugLogger.Println("This is a debug message")
+    logger.InfoLogger.Println("This is an info message")
+    logger.WarningLogger.Println("This is a warning message")
+    logger.ErrorLogger.Println("This is an error message")
+    logger.FatalLogger.Println("This is a fatal message")
+
+    // Check
+    output := buf.String()
+    expectedOutput := strings.Join([]string{
+        "DEBUG: This is a debug message",
+        "INFO: This is an info message",
+        "WARNING: This is a warning message",
+        "ERROR: This is an error message",
+        "FATAL: This is a fatal message",
+    }, "\n") + "\n"
+
+    if output != expectedOutput {
+        t.Errorf("System log output mismatch\nExpected:\n%s\nGot:\n%s", expectedOutput, output)
+    }
+}
+
+
+func TestLoggerInitialization(t *testing.T) {
+	if logger.DebugLogger == nil {
+		t.Error("DebugLogger not initialized")
+	}
+	if logger.InfoLogger == nil {
+		t.Error("InfoLogger not initialized")
+	}
+	if logger.WarningLogger == nil {
+		t.Error("WarningLogger not initialized")
+	}
+	if logger.ErrorLogger == nil {
+		t.Error("ErrorLogger not initialized")
+	}
+	if logger.FatalLogger == nil {
+		t.Error("FatalLogger not initialized")
+	}
+}
+
+func TestWriteSystemLog(t *testing.T) {
+	logFilePath := "system.log"
+	defer os.Remove(logFilePath) // Clean up later
+
+	// Data
+	level := logger.INFO
+	msg := "Test message"
+	nodeAddr := "127.0.0.1"
+	nodePort := "8080"
+
+	logger.WriteSystemLog(level, msg, nodeAddr, nodePort)
+
+	file, err := os.Open(logFilePath)
+	if err != nil {
+		t.Fatalf("failed opening file: %s", err)
+	}
+	defer file.Close()
+
+	// Check
+	found := false
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var entry logger.LogEntry
+		err := json.Unmarshal(scanner.Bytes(), &entry)
+		if err != nil {
+			t.Fatalf("failed to unmarshal log entry: %s", err)
+		}
+		if entry.Level == level && entry.Message == msg && entry.NodeAddr == nodeAddr && entry.NodePort == nodePort {
+			found = true
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("error reading file: %s", err)
+	}
+
+	if !found {
+		t.Errorf("expected log entry not found in file")
+	}
 }

@@ -49,7 +49,7 @@ func WriteRaftLog(level LogLevel, msg string) {
 		Type:      "raft",
 	}
 	RaftLog = append(RaftLog, entry)
-	logToFile(entry, FileName)
+	LogToFile(entry, FileName)
 }
 
 // To create a new copy log file

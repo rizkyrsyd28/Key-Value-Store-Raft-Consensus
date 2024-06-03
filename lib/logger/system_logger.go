@@ -31,5 +31,13 @@ func WriteSystemLog(level LogLevel, msg string, nodeAddr string, nodePort string
 		Message:   msg,
 		Type:      "system",
 	}
-	logToFile(entry, "system.log")
+	LogToFile(entry, "system.log")
+}
+
+func SetSystemLogFlags(flags int) {
+	DebugLogger.SetFlags(flags)
+	InfoLogger.SetFlags(flags)
+	WarningLogger.SetFlags(flags)
+	ErrorLogger.SetFlags(flags)
+	FatalLogger.SetFlags(flags)
 }
