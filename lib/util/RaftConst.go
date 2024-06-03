@@ -1,4 +1,4 @@
-package enum
+package util
 
 type RaftConst float32
 

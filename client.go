@@ -4,19 +4,17 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/connection"
+	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
-	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/struct"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-var address _struct.Address
+//var address _struct.Address
 
 func main() {
 	if len(os.Args) < 3 {
@@ -37,15 +35,12 @@ func main() {
 		}
 	}
 
-	address = *_struct.NewAddress(os.Args[1], os.Args[2])
+	address := _struct.NewAddress(os.Args[1], os.Args[2])
 
-	conn, err := grpc.NewClient(address.IP+":"+strconv.Itoa(address.Port), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client, err := connection.NewClient(address)
 	if err != nil {
 		log.Fatalf("Error Dial %v", err)
 	}
-	defer conn.Close()
-
-	client := pb.NewKeyValueServiceClient(conn)
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -70,7 +65,7 @@ func main() {
 			ctx := context.Background()
 
 			function := func() {
-				response, err := client.Ping(ctx, &pb.Empty{})
+				response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}
@@ -93,7 +88,7 @@ func main() {
 			ctx := context.Background()
 
 			function := func() {
-				response, err := client.Get(ctx, &pb.KeyRequest{Key: command[1]})
+				response, err := client.Services.KV.Get(ctx, &pb.KeyRequest{Key: command[1]})
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}
@@ -115,7 +110,7 @@ func main() {
 			ctx := context.Background()
 
 			function := func() {
-				response, err := client.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+				response, err := client.Services.KV.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}

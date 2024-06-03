@@ -1,4 +1,4 @@
-package lib
+package app
 
 type KVStore struct {
 	store map[string]string
