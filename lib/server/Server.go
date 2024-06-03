@@ -2,10 +2,11 @@ package server
 
 import (
 	"context"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
 	"log"
 	"net"
 	"time"
+
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
 	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
@@ -22,7 +23,7 @@ type GRPCServer struct {
 	listener   net.Listener
 }
 
-func NewServer(_address *Address) *GRPCServer {
+func NewServer(_address *Address, isContact bool, contactAddress *Address) *GRPCServer {
 	server := &GRPCServer{
 		address: _address,
 	}
@@ -36,7 +37,7 @@ func NewServer(_address *Address) *GRPCServer {
 	server.grpcServer = grpc.NewServer(grpc.UnaryInterceptor(UnaryInterceptor))
 
 	app := app.NewKVStore()
-	raft := raft.NewRaftNode(app, server.address)
+	raft := raft.NewRaftNode(app, server.address, isContact, contactAddress)
 
 	kvservice := service.NewKVService(raft)
 	raftservice := service.NewRaftService(raft)

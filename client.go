@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
-	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
+	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 )
@@ -35,7 +36,7 @@ func main() {
 		}
 	}
 
-	address := _struct.NewAddress(os.Args[1], os.Args[2])
+	address := NewAddress(os.Args[1], os.Args[2])
 
 	client, err := client.NewClient(address)
 	if err != nil {

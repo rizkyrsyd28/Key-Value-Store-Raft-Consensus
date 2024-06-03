@@ -3,8 +3,9 @@ package raft
 import (
 	"errors"
 	"fmt"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 	"time"
+
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
 	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
@@ -22,7 +23,7 @@ type RaftNode struct {
 	client               *client.GRPCClient
 }
 
-func NewRaftNode(app *app.KVStore, address *Address) *RaftNode {
+func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddress *Address) *RaftNode {
 	raft := &RaftNode{
 		app:             *app,
 		address:         address,
@@ -30,6 +31,10 @@ func NewRaftNode(app *app.KVStore, address *Address) *RaftNode {
 		electionTerm:    0,
 		clusterAddrList: make([]Address, 0),
 		electionTimeout: RandomElectionTimeout(4, 5),
+	}
+
+	if isContact {
+		
 	}
 
 	return raft

@@ -42,6 +42,7 @@ func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestV
 }
 
 func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+
 	response := pb.HeartbeatResponse{
 		Ack:           35,
 		Term:          1,

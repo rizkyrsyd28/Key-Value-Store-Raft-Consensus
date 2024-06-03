@@ -27,7 +27,7 @@ if "%1" == "server" (
         exit /b 0
     )
     echo Starting server on %2:%3
-    go run %SERVER%.go %2 %3
+    go run %SERVER%.go %2 %3 %4 %5
     exit /b 0
 )
 
