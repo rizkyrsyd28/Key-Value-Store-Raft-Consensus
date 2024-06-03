@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/connection"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 	"log"
 	"os"
@@ -37,7 +37,7 @@ func main() {
 
 	address := _struct.NewAddress(os.Args[1], os.Args[2])
 
-	client, err := connection.NewClient(address)
+	client, err := client.NewClient(address)
 	if err != nil {
 		log.Fatalf("Error Dial %v", err)
 	}

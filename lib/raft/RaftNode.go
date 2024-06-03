@@ -3,33 +3,34 @@ package raft
 import (
 	"errors"
 	"fmt"
-	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
+	"time"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
+	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 )
 
 type RaftNode struct {
-	address              *_struct.Address
-	nodeType             _struct.NodeType
+	address              *Address
+	nodeType             NodeType
 	log                  []string
 	app                  app.KVStore
 	electionTerm         int
-	clusterAddrList      []_struct.Address
-	clusterLeaderAddress _struct.Address
+	clusterAddrList      []Address
+	clusterLeaderAddress Address
+	electionTimeout      time.Duration
+	client               *client.GRPCClient
 }
 
-func NewRaftNode(app *app.KVStore, address *_struct.Address) *RaftNode {
+func NewRaftNode(app *app.KVStore, address *Address) *RaftNode {
 	raft := &RaftNode{
 		app:             *app,
 		address:         address,
-		nodeType:        _struct.LEADER,
+		nodeType:        LEADER,
 		electionTerm:    0,
-		clusterAddrList: make([]_struct.Address, 0),
+		clusterAddrList: make([]Address, 0),
+		electionTimeout: RandomElectionTimeout(4, 5),
 	}
-
-	// if contactAddress == nil {
-
-	// }
 
 	return raft
 }
@@ -42,11 +43,11 @@ func (raft RaftNode) leaderHeartbeat() {
 	fmt.Println("Method Not Implemented")
 }
 
-func (raft RaftNode) tryToApplyMembership(contact _struct.Address) {
+func (raft RaftNode) tryToApplyMembership(contact Address) {
 	fmt.Println("Method Not Implemented")
 }
 
-func (raft RaftNode) sendRequest(request interface{}, rpcName string, address _struct.Address) {
+func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Address) {
 	fmt.Println("Method Not Implemented")
 }
 

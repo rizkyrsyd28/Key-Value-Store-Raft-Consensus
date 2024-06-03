@@ -1,11 +1,12 @@
-package connection
+package client
 
 import (
+	"log"
+
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
 )
 
 type GRPCClient struct {

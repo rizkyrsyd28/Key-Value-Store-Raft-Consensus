@@ -1,15 +1,14 @@
-package connection
+package server
 
 import (
 	"context"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
 	"log"
 	"net"
 	"time"
 
-	_struct "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
-
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
+	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/service"
@@ -18,12 +17,12 @@ import (
 )
 
 type GRPCServer struct {
-	address    *_struct.Address
+	address    *Address
 	grpcServer *grpc.Server
 	listener   net.Listener
 }
 
-func NewServer(_address *_struct.Address) *GRPCServer {
+func NewServer(_address *Address) *GRPCServer {
 	server := &GRPCServer{
 		address: _address,
 	}
