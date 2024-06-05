@@ -9,7 +9,7 @@ import (
 )
 
 type Address struct {
-	pb.Address
+	*pb.Address
 }
 
 func NewAddress(ip string, port string) *Address {
@@ -18,7 +18,7 @@ func NewAddress(ip string, port string) *Address {
 		log.Fatalf("Failed to convert address port: %v", err)
 	}
 	return &Address{
-		pb.Address{
+		&pb.Address{
 			IP:   ip,
 			Port: uint32(_port),
 		},
@@ -44,3 +44,9 @@ func (address *Address) IsEqual(other *Address) bool {
 func (address *Address) IsNotEqual(other *Address) bool {
 	return address.IP != other.IP || address.Port != other.Port
 }
+
+// func ToAddress(pbAddress pb.Address) *Address {
+// 	return &Address{
+// 		Address: pbAddress,
+// 	}
+// }

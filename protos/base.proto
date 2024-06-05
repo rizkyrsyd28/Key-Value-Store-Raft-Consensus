@@ -9,3 +9,10 @@ message Address {
     string  IP      = 1;
     uint32  Port    = 2;
 }
+
+enum STATUS {
+    SUCCESS = 0;
+    REDIRECTED = 1;
+    FAILED = 2;
+    ONPROCESS = 3;
+}

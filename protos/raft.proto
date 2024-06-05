@@ -13,11 +13,19 @@ service RaftService {
 
 message ApplyMembershipRequest {
     bool insert = 1;
+
+    // Base Request
+    optional Address sender = 2;
 }
 
 message ApplyMembershipResponse {
     repeated string     log                 = 1;
     repeated Address    clusterAddressList  = 2;
+
+    // Base Response
+    STATUS status = 3;
+    optional string responseMsg = 4;
+    optional Address redirectedAddress = 5;
 }
 
 message RequestVoteRequest {
@@ -25,12 +33,21 @@ message RequestVoteRequest {
     uint32  term        = 2;
     uint64  logLength   = 3;
     uint64  logTerm     = 4;
+
+    // Base Request
+    optional Address sender = 5;
 }
 
 message RequestVoteResponse {
-    Address nodeAddress = 1;
-    uint64  currentTerm = 2;
-    bool    granted     = 3;
+    Address nodeAddress         = 1;
+    uint64  currentTerm         = 2;
+    bool    granted             = 3;
+
+    // Base Response
+    STATUS status               = 4;
+    optional string responseMsg = 5;
+    optional Address redirectedAddress = 6;
+
 }
 
 message HeartbeatRequest {
@@ -41,10 +58,19 @@ message HeartbeatRequest {
     uint64              commitLength    = 5;
     repeated string     suffix          = 6;
     repeated Address    clusterAddress  = 7;
+
+    // Base Request
+    optional Address sender = 8;
 }
 
 message HeartbeatResponse {
-    uint32  ack             = 1;
-    uint64  term            = 2;
-    bool    successAppend   = 3;
+    uint32  ack                 = 1;
+    uint64  term                = 2;
+    bool    successAppend       = 3;
+
+    // Base Response
+    STATUS status               = 4;
+    optional string responseMsg = 5;
+    optional Address redirectedAddress = 6;
+
 }
