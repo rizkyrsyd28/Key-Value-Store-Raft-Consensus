@@ -48,7 +48,7 @@ func InitLoadRaftLogs() {
 	RaftLog.Entries = log
 }
 
-func WriteRaftLog(term int32, command string) {
+func WriteRaftLog(term uint64, command string) {
     entry := &pb.RaftLogEntry{
         Term:    term,
         Command: command,

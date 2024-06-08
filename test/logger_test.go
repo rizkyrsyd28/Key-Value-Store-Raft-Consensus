@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,6 +19,7 @@ func TestRaftLog(t *testing.T) {
 	nodePort := "8080"
 
 	tempFileName := fmt.Sprintf("%s_%s_%s", nodeAddr, nodePort, "raft_log.json")
+	filePathName := filepath.Join(logger.LogDir, tempFileName)
 
 	// Create file somewhere
 
@@ -59,7 +61,7 @@ func TestRaftLog(t *testing.T) {
 	}
 
 	// Clean up
-	err = os.Remove(logger.LogDir+"/"+tempFileName)
+	err = os.Remove(filePathName)
 	if err != nil {
 		t.Fatalf("Failed to remove temp file: %v", err)
 	}
