@@ -34,6 +34,11 @@ func (c *ClusterNodeList) SetAddress(address []*Address) {
 	}
 }
 
+func (c *ClusterNodeList) PatchAddress(address *Address, clusterNode ClusterNode) ClusterNode {
+	c.Map[address.String()] = clusterNode
+	return c.Map[address.String()]
+}
+
 func (c *ClusterNodeList) Get(id string) ClusterNode {
 	return c.Map[id]
 }
