@@ -49,21 +49,13 @@ func InitLoadRaftLogs() {
 }
 
 func WriteRaftLog(term int32, command string) {
-    // Log entry creation
     entry := &pb.RaftLogEntry{
         Term:    term,
         Command: command,
     }
 
-    // Check if RaftLog is properly initialized
-    if RaftLog.RaftNodeLog == nil {
-        DebugLogger.Println("RaftLog.RaftNodeLog is nil at the start of WriteRaftLog")
-    }
-
-    // Append the new entry to the RaftLog.Entries slice
     RaftLog.Entries = append(RaftLog.Entries, entry)
 
-    // Log the entry to a file
     LogToFile(entry, FileName, "logs")
 }
 
