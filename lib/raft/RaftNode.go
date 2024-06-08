@@ -272,8 +272,7 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 	commitLength := stableVars.CommitLength
 	if uint64(leaderCommit) > commitLength {
 		for i := commitLength; i < uint64(leaderCommit); i++ {
-			// TODO: deliver log to application
-			// raft.App.ExecutingLog(log[i])
+			raft.App.Execute(log[i].Command)
 		}
 		stableVars.CommitLength = uint64(leaderCommit)
 	}
