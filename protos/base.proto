@@ -10,6 +10,15 @@ message Address {
     uint32  Port    = 2;
 }
 
+message RaftLogEntry {
+    int32 term = 1;
+    string command = 2;
+}
+
+message RaftNodeLog {
+    repeated RaftLogEntry entries = 1;
+}
+
 enum STATUS {
     SUCCESS = 0;
     REDIRECTED = 1;

@@ -11,13 +11,14 @@ import (
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
 	. "github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 )
 
 type RaftNode struct {
 	Address              *Address
 	NodeType             NodeType
-	log                  []string
+	log                  logger.RaftNodeLog
 	App                  app.KVStore
 	ElectionTerm         int
 	ClusterAddressList   ClusterNodeList
@@ -39,6 +40,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		App:                *app,
 		Address:            address,
 		NodeType:           FOLLOWER,
+		log:                logger.RaftNodeLog{},
 		ElectionTerm:       0,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(4, 5),
