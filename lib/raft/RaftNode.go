@@ -106,15 +106,15 @@ func (raft *RaftNode) leaderHeartbeat() {
 }
 
 func (raft *RaftNode) sendHeartbeat(id string) {
-	elmt := raft.ClusterAddressList.Get(id)
-	addr := elmt.Address
+	clusterNode := raft.ClusterAddressList.Get(id)
+	addr := clusterNode.Address
 
 	if addr == raft.Address {
 		return
 	}
 
 	stableVars := raft.StableStorage.Load()
-	prefixLen := elmt.SentLn
+	prefixLen := clusterNode.SentLn
 	suffix := stableVars.Log.Entries[prefixLen:]
 	var prefixTerm uint64
 	prefixTerm = 0
@@ -146,20 +146,20 @@ func (raft *RaftNode) sendHeartbeat(id string) {
 	ack := resp.Ack
 	successAppend := resp.SuccessAppend
 
-	ackedLen := elmt.AckLn
+	ackedLen := clusterNode.AckLn
 
 	stableVars = raft.StableStorage.Load()
 	if respTerm == stableVars.ElectionTerm && raft.NodeType == LEADER {
 		if successAppend && ack >= uint32(ackedLen) {
-			elmt.SentLn = int64(ack)
-			elmt.AckLn = int64(ack)
-			raft.ClusterAddressList.AddAddress(addr)
+			clusterNode.SentLn = int64(ack)
+			clusterNode.AckLn = int64(ack)
+			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
 
 			// TODO: implement commitLogEntries
 			// raft.commitLogEntries(stableVars)
-		} else if elmt.SentLn > 0 {
-			elmt.SentLn = elmt.SentLn - 1
-			raft.ClusterAddressList.AddAddress(addr)
+		} else if clusterNode.SentLn > 0 {
+			clusterNode.SentLn = clusterNode.SentLn - 1
+			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
 
 			// TODO: REPLICATE LOG
 		}
