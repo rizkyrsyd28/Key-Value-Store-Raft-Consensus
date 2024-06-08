@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 )
 
 func TestRaftLog(t *testing.T) {
@@ -38,13 +39,18 @@ func TestRaftLog(t *testing.T) {
 	}
 
 	expected := logger.RaftNodeLog{
-		{
-			Term:    69,
-			Command: "PING",
-		},
-		{
-			Term:    420,
-			Command: "SET abob bibob",
+		RaftNodeLog: &pb.RaftNodeLog{
+			Entries: []*pb.RaftLogEntry{
+
+				{
+					Term:    69,
+					Command: "PING",
+				},
+				{
+					Term:    420,
+					Command: "SET abob bibob",
+				},
+			},
 		},
 	}
 
@@ -59,14 +65,14 @@ func TestRaftLog(t *testing.T) {
 	}
 }
 
-func equalLogs(expected, actual logger.RaftNodeLog) bool {
-	if len(expected) != len(actual) {
+func equalLogs(expected logger.RaftNodeLog, actual []*pb.RaftLogEntry) bool {
+	if len(expected.Entries) != len(actual) {
 		return false
 	}
 
-	for i := range expected {
-		if expected[i].Term != actual[i].Term ||
-			expected[i].Command != actual[i].Command {
+	for i := range expected.Entries {
+		if expected.Entries[i].Term != actual[i].Term ||
+			expected.Entries[i].Command != actual[i].Command {
 			return false
 		}
 	}

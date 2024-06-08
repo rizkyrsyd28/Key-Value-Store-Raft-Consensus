@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 )
 
-type RaftLogEntry struct {
-	Term    int    `json:"term"`
-	Command string `json:"command"`
+type RaftNodeLog struct {
+	*pb.RaftNodeLog
 }
-
-type RaftNodeLog []RaftLogEntry
 
 var (
 	nodeAddr string
@@ -20,6 +19,14 @@ var (
 	RaftLog  RaftNodeLog
 	FileName string
 )
+
+func init() {
+	RaftLog = RaftNodeLog{
+		&pb.RaftNodeLog{
+			Entries: make([]*pb.RaftLogEntry, 0),
+		},
+	}
+}
 
 func SetRaftAddrAndPort(addr, port string) {
 	nodeAddr = addr
@@ -38,17 +45,28 @@ func InitLoadRaftLogs() {
 		WriteSystemLog(ERROR, fmt.Sprintf("Error loading Raft log: %v", err), nodeAddr, nodePort)
 		return
 	}
-	RaftLog = log
+	RaftLog.Entries = log
 }
 
-func WriteRaftLog(term int, command string) {
-	entry := RaftLogEntry{
-		Term:   term,
-		Command: command,
-	}
-	RaftLog = append(RaftLog, entry)
-	LogToFile(entry, FileName, "logs")
+func WriteRaftLog(term int32, command string) {
+    // Log entry creation
+    entry := &pb.RaftLogEntry{
+        Term:    term,
+        Command: command,
+    }
+
+    // Check if RaftLog is properly initialized
+    if RaftLog.RaftNodeLog == nil {
+        DebugLogger.Println("RaftLog.RaftNodeLog is nil at the start of WriteRaftLog")
+    }
+
+    // Append the new entry to the RaftLog.Entries slice
+    RaftLog.Entries = append(RaftLog.Entries, entry)
+
+    // Log the entry to a file
+    LogToFile(entry, FileName, "logs")
 }
+
 
 // To create a new copy log file
 func (log *RaftNodeLog) SaveRaftLogToFile(filename string) error {
@@ -76,18 +94,18 @@ func (log *RaftNodeLog) SaveRaftLogToFile(filename string) error {
 }
 
 // load log from specified file
-func LoadRaftLogFromFile(filename string) (RaftNodeLog, error) {
+func LoadRaftLogFromFile(filename string) ([]*pb.RaftLogEntry, error) {
 	filePath := filepath.Join(LogDir, filename)
 
 	logBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return RaftNodeLog{}, fmt.Errorf("error reading log file: %v", err)
+		return []*pb.RaftLogEntry{}, fmt.Errorf("error reading log file: %v", err)
 	}
 
-	var log RaftNodeLog
+	var log []*pb.RaftLogEntry
 	err = json.Unmarshal(logBytes, &log)
 	if err != nil {
-		return RaftNodeLog{}, fmt.Errorf("error unmarshaling log entry: %v", err)
+		return []*pb.RaftLogEntry{}, fmt.Errorf("error unmarshaling log entry: %v", err)
 	}
 
 	return log, nil
