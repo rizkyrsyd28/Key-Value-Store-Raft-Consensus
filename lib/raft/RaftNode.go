@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
@@ -23,6 +24,8 @@ type RaftNode struct {
 	ClusterLeaderAddress *Address
 	ElectionTimeout      time.Duration
 	Client               *client.GRPCClient
+	NodeMutex            sync.Mutex // goroutine
+	UncommitMembership   *MembershipApply
 }
 
 func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddress *Address) *RaftNode {
@@ -40,6 +43,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(4, 5),
 		Client:             _client,
+		UncommitMembership: nil,
 	}
 
 	if !isContact {
@@ -70,6 +74,7 @@ func (raft RaftNode) tryToApplyMembership(contact *Address) {
 
 	request := &pb.ApplyMembershipRequest{
 		Insert: true,
+		Sender: raft.Address.Address,
 	}
 
 	response, err := raft.Client.Services.Raft.ApplyMembership(context.Background(), request)
@@ -78,7 +83,12 @@ func (raft RaftNode) tryToApplyMembership(contact *Address) {
 		fmt.Printf("Error While Apply %v\n", err.Error())
 		return
 	}
-	
+
+	for _, data := range response.ClusterAddressList {
+		addr := Address{Address: data}
+		fmt.Println(addr.ToString())
+	}
+
 	raft.ClusterAddressList.SetAddressPb(response.ClusterAddressList)
 	raft.ClusterLeaderAddress = contact
 }
@@ -93,4 +103,27 @@ func (raft RaftNode) Heartbeat(request interface{}) interface{} {
 
 func (raft RaftNode) Execute(request interface{}) interface{} {
 	return errors.New("Method Not Implemented")
+}
+
+func (raft *RaftNode) AddMembership(address Address, insert bool) {
+	raft.UncommitMembership = NewMembershipApply(address, insert)
+
+	fmt.Println("Data\n", raft.UncommitMembership)
+}
+
+func (raft *RaftNode) CommitMembership(address Address, insert bool) error {
+
+	if raft.UncommitMembership == nil {
+		return errors.New("Uncommited Member Not Found")
+	}
+
+	if !raft.UncommitMembership.Address.IsEqual(&address) || raft.UncommitMembership.Insert != insert {
+		return errors.New("Uncommited Member Not Match")
+	}
+
+	if insert {
+		raft.ClusterAddressList.AddAddress(&address)
+	}
+
+	return nil
 }

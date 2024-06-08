@@ -25,6 +25,8 @@ type RaftServiceClient interface {
 	ApplyMembership(ctx context.Context, in *ApplyMembershipRequest, opts ...grpc.CallOption) (*ApplyMembershipResponse, error)
 	RequestVote(ctx context.Context, in *RequestVoteRequest, opts ...grpc.CallOption) (*RequestVoteResponse, error)
 	SendHeartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
+	AddUpdateCluster(ctx context.Context, in *AddUpdateClusterRequest, opts ...grpc.CallOption) (*AddUpdateClusterResponse, error)
+	CommitUpdateCluster(ctx context.Context, in *CommitUpdateClusterRequest, opts ...grpc.CallOption) (*CommitUpdateClusterResponse, error)
 }
 
 type raftServiceClient struct {
@@ -62,6 +64,24 @@ func (c *raftServiceClient) SendHeartbeat(ctx context.Context, in *HeartbeatRequ
 	return out, nil
 }
 
+func (c *raftServiceClient) AddUpdateCluster(ctx context.Context, in *AddUpdateClusterRequest, opts ...grpc.CallOption) (*AddUpdateClusterResponse, error) {
+	out := new(AddUpdateClusterResponse)
+	err := c.cc.Invoke(ctx, "/dark_syster.RaftService/AddUpdateCluster", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *raftServiceClient) CommitUpdateCluster(ctx context.Context, in *CommitUpdateClusterRequest, opts ...grpc.CallOption) (*CommitUpdateClusterResponse, error) {
+	out := new(CommitUpdateClusterResponse)
+	err := c.cc.Invoke(ctx, "/dark_syster.RaftService/CommitUpdateCluster", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
@@ -69,6 +89,8 @@ type RaftServiceServer interface {
 	ApplyMembership(context.Context, *ApplyMembershipRequest) (*ApplyMembershipResponse, error)
 	RequestVote(context.Context, *RequestVoteRequest) (*RequestVoteResponse, error)
 	SendHeartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
+	AddUpdateCluster(context.Context, *AddUpdateClusterRequest) (*AddUpdateClusterResponse, error)
+	CommitUpdateCluster(context.Context, *CommitUpdateClusterRequest) (*CommitUpdateClusterResponse, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -84,6 +106,12 @@ func (UnimplementedRaftServiceServer) RequestVote(context.Context, *RequestVoteR
 }
 func (UnimplementedRaftServiceServer) SendHeartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendHeartbeat not implemented")
+}
+func (UnimplementedRaftServiceServer) AddUpdateCluster(context.Context, *AddUpdateClusterRequest) (*AddUpdateClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddUpdateCluster not implemented")
+}
+func (UnimplementedRaftServiceServer) CommitUpdateCluster(context.Context, *CommitUpdateClusterRequest) (*CommitUpdateClusterResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitUpdateCluster not implemented")
 }
 func (UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -152,6 +180,42 @@ func _RaftService_SendHeartbeat_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RaftService_AddUpdateCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddUpdateClusterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).AddUpdateCluster(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/dark_syster.RaftService/AddUpdateCluster",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).AddUpdateCluster(ctx, req.(*AddUpdateClusterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RaftService_CommitUpdateCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitUpdateClusterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServiceServer).CommitUpdateCluster(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/dark_syster.RaftService/CommitUpdateCluster",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServiceServer).CommitUpdateCluster(ctx, req.(*CommitUpdateClusterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RaftService_ServiceDesc is the grpc.ServiceDesc for RaftService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +234,14 @@ var RaftService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendHeartbeat",
 			Handler:    _RaftService_SendHeartbeat_Handler,
+		},
+		{
+			MethodName: "AddUpdateCluster",
+			Handler:    _RaftService_AddUpdateCluster_Handler,
+		},
+		{
+			MethodName: "CommitUpdateCluster",
+			Handler:    _RaftService_CommitUpdateCluster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

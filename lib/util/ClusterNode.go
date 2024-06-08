@@ -33,3 +33,11 @@ func (c *ClusterNodeList) SetAddress(address []*Address) {
 		c.AddAddress(member)
 	}
 }
+
+func (c *ClusterNodeList) GetAllAddress() []Address {
+	var addrs []Address
+	for _, node := range c.Map {
+		addrs = append(addrs, *node.Address)
+	}
+	return addrs
+}

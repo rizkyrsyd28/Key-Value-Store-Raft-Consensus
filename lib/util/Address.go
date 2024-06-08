@@ -1,11 +1,14 @@
 package util
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
+	"google.golang.org/grpc/peer"
 )
 
 type Address struct {
@@ -45,8 +48,11 @@ func (address *Address) IsNotEqual(other *Address) bool {
 	return address.IP != other.IP || address.Port != other.Port
 }
 
-// func ToAddress(pbAddress pb.Address) *Address {
-// 	return &Address{
-// 		Address: pbAddress,
-// 	}
-// }
+func GetAddress(ctx context.Context) (interface{}, error) {
+	ext, ok := peer.FromContext(ctx)
+	if ok {
+		return ext.Addr, nil
+	}
+
+	return nil, errors.New("Error")
+}

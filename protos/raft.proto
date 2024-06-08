@@ -9,13 +9,16 @@ service RaftService {
     rpc ApplyMembership(ApplyMembershipRequest) returns(ApplyMembershipResponse);
     rpc RequestVote(RequestVoteRequest) returns(RequestVoteResponse);
     rpc SendHeartbeat(HeartbeatRequest) returns(HeartbeatResponse);
+    rpc AddUpdateCluster(AddUpdateClusterRequest) returns(AddUpdateClusterResponse);
+    rpc CommitUpdateCluster(CommitUpdateClusterRequest) returns(CommitUpdateClusterResponse);
 }
 
+// MEMBERSHIP
 message ApplyMembershipRequest {
     bool insert = 1;
 
     // Base Request
-    optional Address sender = 2;
+    Address sender = 2;
 }
 
 message ApplyMembershipResponse {
@@ -28,6 +31,38 @@ message ApplyMembershipResponse {
     optional Address redirectedAddress = 5;
 }
 
+// CLUSTER
+message AddUpdateClusterRequest {
+    bool insert = 1;
+
+    // Base Request
+    Address sender = 2;
+}
+
+message AddUpdateClusterResponse {
+    // Base Response
+    STATUS status               = 1;
+    optional string responseMsg = 2;
+    optional Address redirectedAddress = 3;
+}
+
+message CommitUpdateClusterRequest {
+    bool insert = 1;
+
+    // Base Request
+    Address sender = 2;
+}
+
+message CommitUpdateClusterResponse {
+    // Base Response
+    STATUS status               = 1;
+    optional string responseMsg = 2;
+    optional Address redirectedAddress = 3;
+}
+
+
+
+// REQUEST VOTE
 message RequestVoteRequest {
     Address votedFor    = 1;
     uint32  term        = 2;
