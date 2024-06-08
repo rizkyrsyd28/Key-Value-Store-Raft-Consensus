@@ -26,6 +26,7 @@ type RaftNode struct {
 	Client               *client.GRPCClient
 	NodeMutex            sync.Mutex // goroutine
 	UncommitMembership   *MembershipApply
+	timer 			  	 *time.Timer
 }
 
 func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddress *Address) *RaftNode {
@@ -35,16 +36,24 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		fmt.Println("Error")
 	}
 
+	const (
+		ELECTION_MIN_TIMEOUT = 150
+		ELECTION_MAX_TIMEOUT = 300
+	)
+
 	raft := &RaftNode{
 		App:                *app,
 		Address:            address,
 		NodeType:           FOLLOWER,
 		ElectionTerm:       0,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
-		ElectionTimeout:    RandomElectionTimeout(4, 5),
+		ElectionTimeout:    RandomElectionTimeout(ELECTION_MIN_TIMEOUT, ELECTION_MAX_TIMEOUT),
 		Client:             _client,
 		UncommitMembership: nil,
 	}
+
+	// election timeout timer
+	raft.runTimer()
 
 	if !isContact {
 		raft.ClusterAddressList.AddAddress(address)
@@ -53,6 +62,8 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		raft.tryToApplyMembership(contactAddress)
 	}
 
+	
+
 	return raft
 }
 
@@ -60,6 +71,24 @@ func (raft *RaftNode) initAsLeader() {
 	// Print Log Initalize as Leader
 	raft.ClusterLeaderAddress = raft.Address
 	raft.NodeType = LEADER
+}
+
+func (raft RaftNode) ResetTimer() {
+	raft.timer.Reset(raft.ElectionTimeout)
+}
+
+func (raft RaftNode) runTimer() {
+	raft.timer = time.NewTimer(raft.ElectionTimeout)
+	go func ()  {
+		<- raft.timer.C
+		raft.requestVote()
+	}()
+}
+
+func (raft RaftNode) requestVote() {
+	raft.NodeType = CANDIDATE
+	raft.ElectionTerm++
+
 }
 
 func (raft RaftNode) leaderHeartbeat() {
