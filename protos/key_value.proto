@@ -12,12 +12,18 @@ service KeyValueService {
    rpc StrLn(KeyRequest) returns(Response);
    rpc Del(KeyRequest) returns(Response);
    rpc Append(KeyValueRequest) returns(Response);
+   rpc RequestLog(Empty) returns(Log);
 }
 
 message Response {
     optional string value = 1;
     optional string responseMsg = 2;
     optional Address redirectAddress = 3;
+    optional STATUS status = 4;
+}
+
+message Log {
+    repeated string value = 1;
 }
 
 message KeyRequest {

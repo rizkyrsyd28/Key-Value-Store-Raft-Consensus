@@ -1,4 +1,4 @@
 /.idea
 *.exe
 debug.go
-/persistent
+/persistent/*

@@ -65,13 +65,25 @@ func main() {
 
 			ctx := context.Background()
 
-			function := func() {
-				response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
-				}
+			// function := func() {
+			// 	response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
 
-				fmt.Printf("%s\n", response.GetValue())
+			// 	fmt.Printf("%s\n", response.GetValue())
+			// }
+
+			function := func() {
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
+					if err != nil {
+						log.Fatalf("Response Error %v", err)
+					}
+					return response
+				}
+				RedirectHanlder(address, handler)
 			}
 
 			if enableTime {
@@ -196,15 +208,15 @@ func main() {
 				continue
 			}
 
-			// ctx := context.Background()
+			ctx := context.Background()
 
 			function := func() {
 				// TODO: Change To RequestLog
-				// response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
-				// if err != nil {
-				// 	log.Fatalf("Response Error %v", err)
-				// }
-				// fmt.Printf("%s\n", response.GetValue())
+				response, err := client.Services.KV.RequestLog(ctx, &pb.Empty{})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("%s\n", response.GetValue())
 			}
 
 			if enableTime {
@@ -233,4 +245,18 @@ func TimeWrap(function func()) {
 	duration := endTime.Sub(startTime)
 
 	fmt.Printf("Response Time: %v\n", duration)
+}
+
+func RedirectHanlder(address *Address, function func(Address) *pb.Response) *pb.Response {
+	response := &pb.Response{
+		RedirectAddress: address.Address,
+		Status:          pb.STATUS_REDIRECTED.Enum(),
+	}
+
+	for response.Status == pb.STATUS_REDIRECTED.Enum() {
+		fmt.Println("REDIRECT")
+		response = function(Address{Address: response.RedirectAddress})
+	}
+
+	return response
 }
