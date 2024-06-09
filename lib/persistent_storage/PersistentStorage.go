@@ -1,4 +1,4 @@
-package stable_storage
+package persistent_storage
 
 import (
 	"encoding/json"
@@ -25,7 +25,8 @@ type PersistentStorage struct {
 
 func NewPersistentStorage(addr *util.Address) *PersistentStorage {
 	id := fmt.Sprintf("%s_%d", addr.IP, addr.Port)
-	path := fmt.Sprintf("persistence/%s.json", id)
+	path := fmt.Sprintf("persistent/%s.json", id)
+
 	return &PersistentStorage{
 		ID:   id,
 		Path: path,
@@ -63,11 +64,4 @@ func (ss *PersistentStorage) StoreAll(data *PersistValues) {
 	if err != nil {
 		return
 	}
-}
-
-func (ss *PersistentStorage) TryLoad() *PersistValues {
-	ss.Lock.Lock()
-	defer ss.Lock.Unlock()
-
-	return ss.Load()
 }
