@@ -93,7 +93,7 @@ func main() {
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}
-				fmt.Printf("%s\n", response.GetValue())
+				fmt.Printf("\"%s\"\n", response.GetValue())
 			}
 
 			if enableTime {
@@ -115,7 +115,96 @@ func main() {
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}
+				fmt.Printf("\"%s\"\n", response.GetValue())
+			}
+
+			if enableTime {
+				TimeWrap(function)
+			} else {
+				function()
+			}
+
+		case "strln":
+			if len(command) != 2 {
+				fmt.Println("Invalid put command. Format: strln <key>")
+				continue
+			}
+
+			ctx := context.Background()
+
+			function := func() {
+				response, err := client.Services.KV.StrLn(ctx, &pb.KeyRequest{Key: command[1]})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
 				fmt.Printf("%s\n", response.GetValue())
+			}
+
+			if enableTime {
+				TimeWrap(function)
+			} else {
+				function()
+			}
+
+		case "del":
+			if len(command) != 2 {
+				fmt.Println("Invalid put command. Format: del <key>")
+				continue
+			}
+
+			ctx := context.Background()
+
+			function := func() {
+				response, err := client.Services.KV.Del(ctx, &pb.KeyRequest{Key: command[1]})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("\"%s\"\n", response.GetValue())
+			}
+
+			if enableTime {
+				TimeWrap(function)
+			} else {
+				function()
+			}
+
+		case "append":
+			if len(command) != 3 {
+				fmt.Println("Invalid put command. Format: append <key> <value>")
+				continue
+			}
+
+			ctx := context.Background()
+
+			function := func() {
+				response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("\"%s\"\n", response.GetValue())
+			}
+
+			if enableTime {
+				TimeWrap(function)
+			} else {
+				function()
+			}
+
+		case "request_log":
+			if len(command) != 2 {
+				fmt.Println("Invalid put command. Format: request_log")
+				continue
+			}
+
+			// ctx := context.Background()
+
+			function := func() {
+				// TODO: Change To RequestLog
+				// response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+				// if err != nil {
+				// 	log.Fatalf("Response Error %v", err)
+				// }
+				// fmt.Printf("%s\n", response.GetValue())
 			}
 
 			if enableTime {
@@ -129,7 +218,7 @@ func main() {
 			return
 
 		default:
-			fmt.Println("Unknown command")
+			fmt.Println("Error: Unknown command")
 		}
 	}
 }
