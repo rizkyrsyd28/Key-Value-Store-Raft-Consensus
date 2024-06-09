@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -121,13 +122,13 @@ func (raft *RaftNode) sendHeartbeat(id string) {
 		return
 	}
 
-	stableVars := raft.PersistentStorage.Load()
+	persistValues := raft.PersistentStorage.Load()
 	prefixLen := clusterNode.SentLn
-	suffix := stableVars.Log.Entries[prefixLen:]
+	suffix := persistValues.Log.Entries[prefixLen:]
 	var prefixTerm uint64
 	prefixTerm = 0
 	if prefixLen > 0 {
-		prefixTerm = stableVars.Log.Entries[prefixLen-1].Term
+		prefixTerm = persistValues.Log.Entries[prefixLen-1].Term
 	}
 
 	msg := &pb.HeartbeatRequest{
@@ -136,7 +137,7 @@ func (raft *RaftNode) sendHeartbeat(id string) {
 		PrefixLength:   uint64(prefixLen),
 		PrefixTerm:     prefixTerm,
 		Suffix:         suffix,
-		CommitLength:   uint64(stableVars.CommitLength),
+		CommitLength:   uint64(persistValues.CommittedLength),
 		ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
 	}
 
@@ -156,25 +157,23 @@ func (raft *RaftNode) sendHeartbeat(id string) {
 
 	ackedLen := clusterNode.AckLn
 
-	stableVars = raft.PersistentStorage.Load()
-	if respTerm == stableVars.ElectionTerm && raft.NodeType == LEADER {
+	persistValues = raft.PersistentStorage.Load()
+	if respTerm == persistValues.ElectionTerm && raft.NodeType == LEADER {
 		if successAppend && ack >= uint32(ackedLen) {
 			clusterNode.SentLn = int64(ack)
 			clusterNode.AckLn = int64(ack)
 			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
-
-			// TODO: implement commitLogEntries
-			// raft.commitLogEntries(stableVars)
+			raft.executeLogEntries(persistValues)
 		} else if clusterNode.SentLn > 0 {
 			clusterNode.SentLn = clusterNode.SentLn - 1
 			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
 
 			// TODO: REPLICATE LOG
 		}
-	} else if respTerm > stableVars.ElectionTerm {
-		stableVars.ElectionTerm = respTerm
-		stableVars.VotedFor = nil
-		raft.PersistentStorage.StoreAll(stableVars)
+	} else if respTerm > persistValues.ElectionTerm {
+		persistValues.ElectionTerm = respTerm
+		persistValues.VotedFor = nil
+		raft.PersistentStorage.StoreAll(persistValues)
 		raft.NodeType = FOLLOWER
 		raft.VotesReceived = make([]Address, 0)
 		raft.interruptAndRestartLoop()
@@ -277,15 +276,46 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 
 	stableVars.Log.Entries = log
 
-	commitLength := stableVars.CommitLength
+	commitLength := stableVars.CommittedLength
 	if uint64(leaderCommit) > commitLength {
 		for i := commitLength; i < uint64(leaderCommit); i++ {
 			raft.App.Execute(log[i].Command)
 		}
-		stableVars.CommitLength = uint64(leaderCommit)
+		stableVars.CommittedLength = uint64(leaderCommit)
 	}
 
 	raft.PersistentStorage.StoreAll(stableVars)
+}
+
+func (raft *RaftNode) executeLogEntries(persistentValues *persistance_storage.PersistValues) {
+	// 50% + 1 mechanism
+	minAck := math.Ceil(float64(len(raft.ClusterAddressList.GetAllAddress())+1) / 2)
+	log := persistentValues.Log.Entries
+	if len(log) == 0 || log[0] == nil {
+		return
+	}
+	latestIdxToCommitFromAck := 0
+	for i := 0; i < len(log); i++ {
+		sum := 0
+		for _, clusterNode := range raft.ClusterAddressList.Map {
+			if clusterNode.AckLn >= int64(i) {
+				sum++
+			}
+		}
+		if sum >= int(minAck) {
+			latestIdxToCommitFromAck = i + 1
+		}
+	}
+	commitLength := persistentValues.CommittedLength
+	latestLogElectionTerm := log[latestIdxToCommitFromAck-1].Term
+	currerntElectionTerm := persistentValues.ElectionTerm
+	if latestIdxToCommitFromAck > int(commitLength) && latestLogElectionTerm == currerntElectionTerm {
+		for i := commitLength; i < uint64(latestIdxToCommitFromAck); i++ {
+			raft.App.Execute(log[i].Command)
+		}
+		persistentValues.CommittedLength = uint64(latestIdxToCommitFromAck)
+		raft.PersistentStorage.StoreAll(persistentValues)
+	}
 }
 
 func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response, error) {
@@ -323,10 +353,10 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 	}
 	raft.log.Entries = append(raft.log.Entries, newLogEntry)
 	raft.PersistentStorage.StoreAll(&persistance_storage.PersistValues{
-		ElectionTerm: uint64(raft.ElectionTerm),
-		VotedFor:     raft.VotedFor,
-		Log:          raft.log,
-		CommitLength: raft.CommitLength,
+		ElectionTerm:    uint64(raft.ElectionTerm),
+		VotedFor:        raft.VotedFor,
+		Log:             raft.log,
+		CommittedLength: raft.CommitLength,
 	})
 	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())
 	clusterNode.AckLn = int64(len(raft.log.Entries))

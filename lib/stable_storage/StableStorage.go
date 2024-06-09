@@ -11,10 +11,10 @@ import (
 )
 
 type PersistValues struct {
-	ElectionTerm uint64
-	VotedFor     *util.Address
-	Log          logger.RaftNodeLog
-	CommitLength uint64
+	ElectionTerm    uint64
+	VotedFor        *util.Address
+	Log             logger.RaftNodeLog
+	CommittedLength uint64
 }
 
 type PersistentStorage struct {
