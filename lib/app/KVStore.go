@@ -7,9 +7,25 @@ import (
 	"sync"
 )
 
+// Command Type
+const (
+	PING    = "PING"
+	SET     = "SET"
+	GET     = "GET"
+	DELETE  = "DELETE"
+	APPEND  = "APPEND"
+	STRLEN  = "STRLEN"
+)
+
 type KVStore struct {
 	store map[string]string
 	lock  sync.Mutex
+}
+
+func NewKVStore() *KVStore {
+	return &KVStore{
+		store: make(map[string]string),
+	}
 }
 
 func (kv *KVStore) Execute(commandRaw string) (string, error) {
@@ -83,12 +99,6 @@ func (kv *KVStore) Execute(commandRaw string) (string, error) {
 	}
 }
 
-func NewKVStore() *KVStore {
-	return &KVStore{
-		store: make(map[string]string),
-	}
-}
-
 func (kv *KVStore) Ping() string {
 	return "PONG"
 }
@@ -140,4 +150,31 @@ func (kv *KVStore) Append(key, value string) (string, error) {
 	new_value := existing + value
 	kv.store[key] = new_value
 	return "OK", nil
+}
+
+func IsCommandIdempotent(commandType string) bool {
+	if( commandType != PING && commandType != GET && commandType != STRLEN) {
+		return false
+	}
+	return true
+}
+
+func GetCommandType(command string) string {
+	command = strings.ToUpper(strings.Fields(command)[0])
+	switch command {
+	case PING:
+		return PING
+	case SET:
+		return SET
+	case GET:
+		return GET
+	case DELETE:
+		return DELETE
+	case APPEND:
+		return APPEND
+	case STRLEN:
+		return STRLEN
+	default:
+		return ""
+	}
 }

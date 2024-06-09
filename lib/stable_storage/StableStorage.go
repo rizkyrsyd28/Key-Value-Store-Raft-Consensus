@@ -7,36 +7,32 @@ import (
 	"sync"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 )
 
-type Address struct {
-	IP   string
-	Port int
-}
-
-type StableVars struct {
+type PersistValues struct {
 	ElectionTerm uint64
-	VotedFor     *Address
+	VotedFor     *util.Address
 	Log          logger.RaftNodeLog
 	CommitLength uint64
 }
 
-type StableStorage struct {
+type PersistentStorage struct {
 	ID   string
 	Path string
 	Lock sync.Mutex
 }
 
-func NewStableStorage(addr Address) *StableStorage {
+func NewPersistentStorage(addr *util.Address) *PersistentStorage {
 	id := fmt.Sprintf("%s_%d", addr.IP, addr.Port)
 	path := fmt.Sprintf("persistence/%s.json", id)
-	return &StableStorage{
+	return &PersistentStorage{
 		ID:   id,
 		Path: path,
 	}
 }
 
-func (ss *StableStorage) Load() *StableVars {
+func (ss *PersistentStorage) Load() *PersistValues {
 	ss.Lock.Lock()
 	defer ss.Lock.Unlock()
 
@@ -45,7 +41,7 @@ func (ss *StableStorage) Load() *StableVars {
 		return nil
 	}
 
-	var result StableVars
+	var result PersistValues
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		return nil
@@ -54,7 +50,7 @@ func (ss *StableStorage) Load() *StableVars {
 	return &result
 }
 
-func (ss *StableStorage) StoreAll(data *StableVars) {
+func (ss *PersistentStorage) StoreAll(data *PersistValues) {
 	ss.Lock.Lock()
 	defer ss.Lock.Unlock()
 
@@ -69,7 +65,7 @@ func (ss *StableStorage) StoreAll(data *StableVars) {
 	}
 }
 
-func (ss *StableStorage) TryLoad() *StableVars {
+func (ss *PersistentStorage) TryLoad() *PersistValues {
 	ss.Lock.Lock()
 	defer ss.Lock.Unlock()
 
