@@ -291,9 +291,8 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response, error) {
 	if raft.NodeType != util.LEADER {
 		err := errors.New("redirected to leader address")
-		leaderAddress := raft.ClusterLeaderAddress.ToString()
 		return &pb.Response{
-			RedirectAddress: &leaderAddress,
+			RedirectAddress: raft.ClusterLeaderAddress.Address,
 		}, err
 	}
 	// Check if idempotent then give immediate result
