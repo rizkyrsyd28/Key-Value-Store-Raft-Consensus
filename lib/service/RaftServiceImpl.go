@@ -95,13 +95,13 @@ func (rs *RaftServiceImpl) ApplyMembership(ctx context.Context, request *pb.Appl
 	}
 
 	for _, contact := range contactAddress {
-		go func() {
+		go func(contact Address) { // Salin variabel contact ke dalam goroutine
 			rs.node.Client.SetAddress(&contact)
 			rs.node.Client.Services.Raft.CommitUpdateCluster(internalCtx, &pb.CommitUpdateClusterRequest{
 				Insert: request.Insert,
 				Sender: rs.node.Address.Address,
 			})
-		}()
+		}(contact) // Kirim salinan variabel contact ke goroutine
 	}
 
 	// fmt.Println("Data : ", rs.node.UncommitMembership)
