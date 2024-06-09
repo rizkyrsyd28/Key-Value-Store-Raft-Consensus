@@ -127,17 +127,26 @@ func (rs *RaftServiceImpl) ApplyMembership(ctx context.Context, request *pb.Appl
 }
 
 func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestVoteRequest) (*pb.RequestVoteResponse, error) {
-	address := NewAddress("135.0.12.9", "4005")
-	response := pb.RequestVoteResponse{
-		NodeAddress: address.Address,
-		CurrentTerm: 1,
-		Granted:     true,
+
+	// TODO: add voted for check in condition
+	if (rs.node.ElectionTerm == request.Term && rs.node.NodeType == FOLLOWER) {
+		return &pb.RequestVoteResponse{
+			NodeAddress: rs.node.Address.Address,
+			CurrentTerm: 1,
+			Granted:     true,
+		}, nil
+	} else {
+		return &pb.RequestVoteResponse{
+			NodeAddress: rs.node.Address.Address,
+			CurrentTerm: 1,
+			Granted:     false,
+		}, nil
 	}
-	return &response, nil
 }
 
 func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
-
+	rs.node.ResetElectionTimer()
+	rs.node.ClusterLeaderAddress = &Address{Address: request.Sender}
 	response := pb.HeartbeatResponse{
 		Ack:           35,
 		Term:          1,

@@ -19,11 +19,11 @@ type RaftNode struct {
 	NodeType             NodeType
 	log                  []string
 	App                  app.KVStore
-	ElectionTerm         int
+	ElectionTerm         uint32
 	ClusterAddressList   ClusterNodeList
 	ClusterLeaderAddress *Address
-	ElectionTimeout      time.Duration
-	HeartbeatInterval     time.Duration
+	ElectionTimeout      time.Duration // in seconds
+	HeartbeatInterval    time.Duration // in seconds
 	Client               *client.GRPCClient
 	NodeMutex            sync.Mutex // goroutine
 	UncommitMembership   *MembershipApply
@@ -37,33 +37,26 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		fmt.Println("Error")
 	}
 
-	const (
-		ELECTION_MIN_TIMEOUT = 15
-		ELECTION_MAX_TIMEOUT = 30
-		HEARTBEAT_INTERVAL = 4
-	)
-
 	raft := &RaftNode{
 		App:                *app,
 		Address:            address,
 		NodeType:           FOLLOWER,
 		ElectionTerm:       0,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
-		ElectionTimeout:    RandomElectionTimeout(ELECTION_MIN_TIMEOUT, ELECTION_MAX_TIMEOUT),
-		HeartbeatInterval:   HEARTBEAT_INTERVAL,
+		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
+		HeartbeatInterval:   time.Duration(HEARTBEAT_INTERVAL) * time.Second,
 		Client:             _client,
 		UncommitMembership: nil,
 	}
 
 	
 	if !isContact {
-		raft.ClusterAddressList.AddAddress(address)
 		raft.initAsLeader()
 	} else {
 		raft.tryToApplyMembership(contactAddress)
 	}
 			
-	raft.start()
+	raft.startNode()
 	
 
 	return raft
@@ -72,52 +65,102 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 func (raft *RaftNode) initAsLeader() {
 	// Print Log Initalize as Leader
 	raft.ClusterLeaderAddress = raft.Address
-	fmt.Println("djdjdjjd")
+	raft.ClusterAddressList.AddAddress(raft.Address)
 	raft.NodeType = LEADER
+	fmt.Println("Leader Initalize")
 }
 
-func (raft RaftNode) ResetTimer() {
+func (raft RaftNode) ResetElectionTimer() {
 	raft.timer.Reset(raft.ElectionTimeout)
 }
 
-func (raft *RaftNode) start() {
-	fmt.Println("halo ")
+func (raft RaftNode) ResetHeartbeatTimer() {
+	raft.timer.Reset(raft.HeartbeatInterval)
+}
+
+func (raft *RaftNode) startNode() {
 	fmt.Println(raft.NodeType)
 	if (raft.NodeType == LEADER) {
-		fmt.Println("halo ha")
-		raft.leaderHeartbeat()
-		fmt.Println("halo halo")
+		raft.timer = time.NewTimer(raft.HeartbeatInterval)
 	} else {
-		raft.runElectionTimer()
+		raft.timer = time.NewTimer(raft.ElectionTimeout)
 	}
-}
-
-
-func (raft RaftNode) runElectionTimer() {
-	raft.timer = time.NewTimer(raft.ElectionTimeout * time.Second)
-	go func ()  {
-		<- raft.timer.C
-		raft.requestVote()
-	}()
-}
-
-func (raft RaftNode) requestVote() {
-	raft.NodeType = CANDIDATE
-	raft.ElectionTerm++
-
-}
-
-func (raft *RaftNode) leaderHeartbeat() {
-	raft.timer = time.NewTimer(time.Duration(raft.HeartbeatInterval) * time.Second)
 	go func() {
 		for {
 			select {
 			case <-raft.timer.C:
-				raft.sendHeartbeat()
-				raft.timer.Reset(time.Duration(raft.HeartbeatInterval) * time.Second)
+				if (raft.NodeType == LEADER) {
+					raft.sendHeartbeat()
+					raft.ResetHeartbeatTimer()
+				} else {
+					raft.requestVote() // reset election timer inside requestVote
+				}
 			}
+			fmt.Println("=====")
 		}
 	}()
+}
+
+
+func (raft *RaftNode) requestVote() {
+	raft.NodeType = CANDIDATE
+
+	contactList := raft.ClusterAddressList.GetAllAddress()
+
+	// TODO: update election term on stable storage
+
+	responseVote := make(chan pb.RequestVoteResponse)
+	votedCount := 1
+
+	fmt.Println("Requesting Vote")
+	var wait sync.WaitGroup
+	for _, contact := range contactList {
+		wait.Add(1)
+		go func (address Address) {
+			defer wait.Done()// send request vote to other nodes
+			if (contact.Address != raft.Address.Address) {
+				raft.Client.SetAddress(&contact)
+				res, err := raft.Client.Services.Raft.RequestVote(context.Background(), &pb.RequestVoteRequest{
+					VotedFor: raft.Address.Address,
+					Term: raft.ElectionTerm,
+					// LogLength: stableStorage.length,
+					// LogTerm: stableStorage.term,
+					// Sender: raft.Address.Address,
+				})
+				if err != nil {
+					fmt.Println("Error While Send Heartbeat")
+				} else {
+					fmt.Println("sending heartbeat...")
+					responseVote <- *res
+				}
+			}
+		}(contact)
+	}
+
+	// rerandom election timeout and reset timer
+	raft.ElectionTimeout = RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX)
+	raft.timer.Reset(raft.ElectionTimeout)
+
+	go func() {
+		wait.Wait()
+		close(responseVote)
+	}()
+
+	for res := range responseVote {
+		if res.Granted {
+			votedCount++
+		}
+	}
+
+	// Check if votedCount is enough to become the leader
+	if votedCount > len(contactList)/2 {
+		raft.initAsLeader()
+		raft.ResetHeartbeatTimer()
+		fmt.Println("Became the leader, votedCount:", votedCount)
+	} else {
+		fmt.Println("Failed to become the leader, votedCount:", votedCount)
+		// timer continue running
+	}
 }
 
 func (raft RaftNode) tryToApplyMembership(contact *Address) {
@@ -180,7 +223,8 @@ func (raft *RaftNode) sendHeartbeat() {
 	}()
 	// Now you can range over the responseChan to receive responses
 	for response := range responseChan {
-		// Handle each response here
+		// TO DO: handle if the response is not as expected
+
 		fmt.Println("Received response:", response)
 	}
 }
