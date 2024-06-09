@@ -24,7 +24,7 @@ type RaftNode struct {
 	ElectionTerm         uint32
 	App                  *app.KVStore
 	PersistentStorage    *persistent_storage.PersistentStorage
-	CommittedLength         uint64
+	CommittedLength      uint64
 	VotedFor             *Address
 	ClusterAddressList   ClusterNodeList
 	ClusterLeaderAddress *Address
@@ -54,7 +54,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		},
 		PersistentStorage:  persistent_storage.NewPersistentStorage(address),
 		ElectionTerm:       0,
-		CommittedLength:       0,
+		CommittedLength:    0,
 		VotedFor:           nil,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
@@ -89,6 +89,11 @@ func (raft *RaftNode) initPersistentStorage() {
 	if persistentStorage != nil {
 		fmt.Println("Persistent storage loaded: ", persistentStorage)
 
+		raft.log = persistentStorage.Log
+		raft.VotedFor = persistentStorage.VotedFor
+		raft.ElectionTerm = uint32(persistentStorage.ElectionTerm)
+		raft.CommittedLength = persistentStorage.CommittedLength
+
 		logEntries := persistentStorage.Log.Entries
 		for _, entry := range logEntries {
 			// Execute log entry
@@ -105,9 +110,9 @@ func (raft *RaftNode) initPersistentStorage() {
 			},
 		}
 		newInitializedPerStorage := persistent_storage.PersistValues{
-			ElectionTerm: 1,
-			VotedFor:     raft.Address,
-			Log:          RaftLog,
+			ElectionTerm:    0,
+			VotedFor:        nil,
+			Log:             RaftLog,
 			CommittedLength: 0,
 		}
 
@@ -261,8 +266,6 @@ func (raft *RaftNode) sendHeartbeat() {
 
 			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
 			prefixLen := clusterNode.SentLn
-			fmt.Println("prefLn", prefixLen)
-			fmt.Println("stabVa", persistentVars)
 			suffix := persistentVars.Log.Entries[prefixLen:]
 			var prefixTerm uint64
 			prefixTerm = 0
@@ -382,9 +385,13 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 
 func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, persistentVars *persistent_storage.PersistValues) {
 	log := persistentVars.Log.Entries
+	if len(log) == 0 || log[0] == nil {
+		return
+	}
 
 	if len(suffix) > 0 && len(log) > prefixLen {
 		idx := FindMin(len(log), prefixLen+len(suffix)) - 1
+		logger.DebugLogger.Println("idx", idx, "(log)", (log), "prefixLen", prefixLen, "(suffix)", suffix)
 		if log[idx].Term != suffix[idx-prefixLen].Term {
 			log = log[:prefixLen]
 		}
@@ -445,6 +452,7 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		err := errors.New("redirected to leader address")
 		return &pb.Response{
 			RedirectAddress: raft.ClusterLeaderAddress.Address,
+			Status:          pb.STATUS_REDIRECTED.Enum(),
 		}, err
 	}
 	// Check if idempotent then give immediate result
@@ -469,15 +477,20 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		}, nil
 	}
 	// Append to newLogEntry only, no execute on app
+
+	logger.DebugLogger.Println("term in uint", uint64(raft.ElectionTerm))
 	newLogEntry := &pb.RaftLogEntry{
-		Term:    uint64(raft.ElectionTerm),
+		Term:    0,
 		Command: command,
 	}
+	logger.DebugLogger.Println("newLogEntry", newLogEntry)
 	raft.log.Entries = append(raft.log.Entries, newLogEntry)
+	logger.DebugLogger.Println("curernt term", raft.ElectionTerm)
+	logger.DebugLogger.Println("raft.log.Entries", raft.log.Entries)
 	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
-		ElectionTerm: uint64(raft.ElectionTerm),
-		VotedFor:     raft.VotedFor,
-		Log:          raft.log,
+		ElectionTerm:    uint64(raft.ElectionTerm),
+		VotedFor:        raft.VotedFor,
+		Log:             raft.log,
 		CommittedLength: raft.CommittedLength,
 	})
 	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())
