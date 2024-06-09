@@ -232,6 +232,10 @@ func (raft RaftNode) tryToApplyMembership(contact *Address) {
 
 	raft.ClusterAddressList.SetAddressPb(response.ClusterAddressList)
 	raft.ClusterLeaderAddress = contact
+	raft.log.RaftNodeLog = response.Log
+	stableValues := raft.PersistentStorage.Load()
+	stableValues.Log = raft.log
+	raft.PersistentStorage.StoreAll(stableValues)
 }
 
 func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Address) {
