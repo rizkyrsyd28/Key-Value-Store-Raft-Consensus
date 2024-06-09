@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/raft"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
@@ -17,6 +19,7 @@ func NewKVService(_node *raft.RaftNode) *KeyValueServiceImpl {
 }
 
 func (kv *KeyValueServiceImpl) Ping(ctx context.Context, empty *pb.Empty) (*pb.Response, error) {
+	fmt.Println("Do Ping")
 	res, err := kv.node.Execute(ctx, "PING")
 	if err != nil {
 		return res, err
@@ -61,6 +64,6 @@ func (kv *KeyValueServiceImpl) Append(ctx context.Context, req *pb.KeyValueReque
 	return res, nil
 }
 func (kv *KeyValueServiceImpl) RequestLog(ctx context.Context, empty *pb.Empty) (*pb.Response, error) {
-	res  := kv.node.RequestRaftLog()
+	res := kv.node.RequestRaftLog()
 	return res, nil
 }
