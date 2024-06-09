@@ -48,6 +48,7 @@ func main() {
 	router.POST("/strln", StrLn(client))
 	router.POST("/del", Del(client))
 	router.POST("/append", Append(client))
+	router.POST("/requestlog", RequestLog(client))
 
 	router.Run(":3000")
 }
@@ -180,6 +181,19 @@ func Append(c *client.GRPCClient) gin.HandlerFunc {
 
 		response, err := c.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: input.Key, Value: input.Value})
 		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something Wrong With Server"})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"message": response.GetValue()})
+	}
+}
+
+func RequestLog(c *client.GRPCClient) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		response, err := c.Services.KV.RequestLog(ctx, &pb.Empty{})
+		if err != nil {
+			fmt.Println(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something Wrong With Server"})
 			return
 		}
