@@ -89,6 +89,11 @@ func (raft *RaftNode) initPersistentStorage() {
 	if persistentStorage != nil {
 		fmt.Println("Persistent storage loaded: ", persistentStorage)
 
+		raft.log = persistentStorage.Log
+		raft.VotedFor = persistentStorage.VotedFor
+		raft.ElectionTerm = uint32(persistentStorage.ElectionTerm)
+		raft.CommittedLength = persistentStorage.CommittedLength
+
 		logEntries := persistentStorage.Log.Entries
 		for _, entry := range logEntries {
 			// Execute log entry
@@ -105,8 +110,8 @@ func (raft *RaftNode) initPersistentStorage() {
 			},
 		}
 		newInitializedPerStorage := persistent_storage.PersistValues{
-			ElectionTerm: 1,
-			VotedFor:     raft.Address,
+			ElectionTerm: 0,
+			VotedFor:     nil,
 			Log:          RaftLog,
 			CommittedLength: 0,
 		}
@@ -261,8 +266,6 @@ func (raft *RaftNode) sendHeartbeat() {
 
 			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
 			prefixLen := clusterNode.SentLn
-			fmt.Println("prefLn", prefixLen)
-			fmt.Println("stabVa", persistentVars)
 			suffix := persistentVars.Log.Entries[prefixLen:]
 			var prefixTerm uint64
 			prefixTerm = 0
@@ -382,9 +385,13 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 
 func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, persistentVars *persistent_storage.PersistValues) {
 	log := persistentVars.Log.Entries
+	if len(log) == 0 || log[0] == nil {
+		return
+	}
 
 	if len(suffix) > 0 && len(log) > prefixLen {
 		idx := FindMin(len(log), prefixLen+len(suffix)) - 1
+		logger.DebugLogger.Println("idx", idx, "(log)", (log), "prefixLen", prefixLen, "(suffix)", suffix)
 		if log[idx].Term != suffix[idx-prefixLen].Term {
 			log = log[:prefixLen]
 		}
@@ -469,11 +476,17 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		}, nil
 	}
 	// Append to newLogEntry only, no execute on app
+
+
+	logger.DebugLogger.Println("term in uint", uint64(raft.ElectionTerm))
 	newLogEntry := &pb.RaftLogEntry{
-		Term:    uint64(raft.ElectionTerm),
+		Term:    0,
 		Command: command,
 	}
+	logger.DebugLogger.Println("newLogEntry", newLogEntry)
 	raft.log.Entries = append(raft.log.Entries, newLogEntry)
+	logger.DebugLogger.Println("curernt term", raft.ElectionTerm)
+	logger.DebugLogger.Println("raft.log.Entries", raft.log.Entries)
 	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
 		ElectionTerm: uint64(raft.ElectionTerm),
 		VotedFor:     raft.VotedFor,
