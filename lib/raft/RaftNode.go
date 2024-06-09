@@ -24,7 +24,7 @@ type RaftNode struct {
 	ElectionTerm         uint32
 	App                  *app.KVStore
 	PersistentStorage    *persistent_storage.PersistentStorage
-	CommittedLength         uint64
+	CommittedLength      uint64
 	VotedFor             *Address
 	ClusterAddressList   ClusterNodeList
 	ClusterLeaderAddress *Address
@@ -54,7 +54,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		},
 		PersistentStorage:  persistent_storage.NewPersistentStorage(address),
 		ElectionTerm:       0,
-		CommittedLength:       0,
+		CommittedLength:    0,
 		VotedFor:           nil,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
@@ -110,9 +110,9 @@ func (raft *RaftNode) initPersistentStorage() {
 			},
 		}
 		newInitializedPerStorage := persistent_storage.PersistValues{
-			ElectionTerm: 0,
-			VotedFor:     nil,
-			Log:          RaftLog,
+			ElectionTerm:    0,
+			VotedFor:        nil,
+			Log:             RaftLog,
 			CommittedLength: 0,
 		}
 
@@ -452,6 +452,7 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		err := errors.New("redirected to leader address")
 		return &pb.Response{
 			RedirectAddress: raft.ClusterLeaderAddress.Address,
+			Status:          pb.STATUS_REDIRECTED.Enum(),
 		}, err
 	}
 	// Check if idempotent then give immediate result
@@ -477,7 +478,6 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 	}
 	// Append to newLogEntry only, no execute on app
 
-
 	logger.DebugLogger.Println("term in uint", uint64(raft.ElectionTerm))
 	newLogEntry := &pb.RaftLogEntry{
 		Term:    0,
@@ -488,9 +488,9 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 	logger.DebugLogger.Println("curernt term", raft.ElectionTerm)
 	logger.DebugLogger.Println("raft.log.Entries", raft.log.Entries)
 	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
-		ElectionTerm: uint64(raft.ElectionTerm),
-		VotedFor:     raft.VotedFor,
-		Log:          raft.log,
+		ElectionTerm:    uint64(raft.ElectionTerm),
+		VotedFor:        raft.VotedFor,
+		Log:             raft.log,
 		CommittedLength: raft.CommittedLength,
 	})
 	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())

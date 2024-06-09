@@ -254,6 +254,7 @@ func RedirectHanlder(address *Address, function func(Address) *pb.Response) *pb.
 	}
 
 	for response.Status == pb.STATUS_REDIRECTED.Enum() {
+		fmt.Println("REDIRECT")
 		response = function(Address{Address: response.RedirectAddress})
 	}
 
