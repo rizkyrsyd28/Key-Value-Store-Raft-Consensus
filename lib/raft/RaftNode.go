@@ -525,3 +525,9 @@ func (raft *RaftNode) CommitMembership(address Address, insert bool) error {
 
 	return nil
 }
+
+func (raft *RaftNode) RequestRaftLog() (*pb.Response) {
+	return &pb.Response{
+		Log: raft.log.RaftNodeLog,
+	}
+}

@@ -20,6 +20,7 @@ message Response {
     optional string responseMsg = 2;
     optional Address redirectAddress = 3;
     optional STATUS status = 4;
+    optional RaftNodeLog log = 5;
 }
 
 message Log {

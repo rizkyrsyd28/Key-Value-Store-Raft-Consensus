@@ -61,9 +61,6 @@ func (kv *KeyValueServiceImpl) Append(ctx context.Context, req *pb.KeyValueReque
 	return res, nil
 }
 func (kv *KeyValueServiceImpl) RequestLog(ctx context.Context, empty *pb.Empty) (*pb.Response, error) {
-	res, err := kv.node.Execute(ctx, "REQUEST_LOG")
-	if err != nil {
-		return res, err
-	}
+	res  := kv.node.RequestRaftLog()
 	return res, nil
 }

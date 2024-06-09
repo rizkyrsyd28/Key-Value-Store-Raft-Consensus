@@ -94,9 +94,9 @@ func (kv *KVStore) Execute(commandRaw string) (string, error) {
 		}
 		return strconv.Itoa(value), nil
 	
-	case "REQUEST_LOG":
-		// TODO: implement request log
-		return "", errors.New("REQUEST_LOG is not implemented")
+	// case "REQUEST_LOG":
+	// 	// TODO: implement request log
+	// 	return "", errors.New("REQUEST_LOG is not implemented")
 
 	default:
 		return "", errors.New("unknown command")
