@@ -12,7 +12,7 @@ service KeyValueService {
    rpc StrLn(KeyRequest) returns(Response);
    rpc Del(KeyRequest) returns(Response);
    rpc Append(KeyValueRequest) returns(Response);
-   rpc RequestLog(Empty) returns(Log);
+   rpc RequestLog(Empty) returns(Response);
 }
 
 message Response {

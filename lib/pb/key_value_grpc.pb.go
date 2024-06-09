@@ -28,7 +28,7 @@ type KeyValueServiceClient interface {
 	StrLn(ctx context.Context, in *KeyRequest, opts ...grpc.CallOption) (*Response, error)
 	Del(ctx context.Context, in *KeyRequest, opts ...grpc.CallOption) (*Response, error)
 	Append(ctx context.Context, in *KeyValueRequest, opts ...grpc.CallOption) (*Response, error)
-	RequestLog(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Log, error)
+	RequestLog(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Response, error)
 }
 
 type keyValueServiceClient struct {
@@ -93,8 +93,8 @@ func (c *keyValueServiceClient) Append(ctx context.Context, in *KeyValueRequest,
 	return out, nil
 }
 
-func (c *keyValueServiceClient) RequestLog(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Log, error) {
-	out := new(Log)
+func (c *keyValueServiceClient) RequestLog(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
 	err := c.cc.Invoke(ctx, "/dark_syster.KeyValueService/RequestLog", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ type KeyValueServiceServer interface {
 	StrLn(context.Context, *KeyRequest) (*Response, error)
 	Del(context.Context, *KeyRequest) (*Response, error)
 	Append(context.Context, *KeyValueRequest) (*Response, error)
-	RequestLog(context.Context, *Empty) (*Log, error)
+	RequestLog(context.Context, *Empty) (*Response, error)
 	mustEmbedUnimplementedKeyValueServiceServer()
 }
 
@@ -138,7 +138,7 @@ func (UnimplementedKeyValueServiceServer) Del(context.Context, *KeyRequest) (*Re
 func (UnimplementedKeyValueServiceServer) Append(context.Context, *KeyValueRequest) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Append not implemented")
 }
-func (UnimplementedKeyValueServiceServer) RequestLog(context.Context, *Empty) (*Log, error) {
+func (UnimplementedKeyValueServiceServer) RequestLog(context.Context, *Empty) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestLog not implemented")
 }
 func (UnimplementedKeyValueServiceServer) mustEmbedUnimplementedKeyValueServiceServer() {}
