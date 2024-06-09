@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -29,7 +30,6 @@ func main() {
 	router := gin.Default()
 
 	router.LoadHTMLGlob("web/templates/*")
-
 	address := NewAddress(os.Args[1], os.Args[2])
 
 	client, err := client.NewClient(address)
@@ -80,6 +80,7 @@ func Ping(c *client.GRPCClient) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		response, err := c.Services.KV.Ping(ctx, &pb.Empty{})
 		if err != nil {
+			fmt.Println(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something Wrong With Server"})
 			return
 		}
@@ -100,6 +101,7 @@ func Get(c *client.GRPCClient) gin.HandlerFunc {
 
 		response, err := c.Services.KV.Get(ctx, &pb.KeyRequest{Key: input.Key})
 		if err != nil {
+			log.Println(err.Error())
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something Wrong With Server"})
 			return
 		}
