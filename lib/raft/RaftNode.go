@@ -475,7 +475,6 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 		Term:   uint64(persistentVars.ElectionTerm),
 	}
 
-
 	logger.DebugLogger.Println("reqTerm", reqTerm, "persistentVars.ElectionTerm", persistentVars.ElectionTerm, "logOk", logOk)
 	if reqTerm == uint64(persistentVars.ElectionTerm) && logOk {
 		raft.ClusterAddressList.SetAddressPb(clusterAddrs)
@@ -569,6 +568,7 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		errorMessage := "Invalid Command"
 		return &pb.Response{
 			ResponseMsg: &errorMessage,
+			Status:      pb.STATUS_FAILED.Enum(),
 		}, nil
 
 	}
@@ -578,10 +578,12 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 			errorMessage := err.Error()
 			return &pb.Response{
 				ResponseMsg: &errorMessage,
+				Status:      pb.STATUS_FAILED.Enum(),
 			}, nil
 		}
 		return &pb.Response{
-			Value: &value,
+			Value:  &value,
+			Status: pb.STATUS_SUCCESS.Enum(),
 		}, nil
 	}
 	// Append to newLogEntry only, no execute on app
@@ -607,6 +609,7 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 	responseMessageOnProcess := "Process On Progress"
 	return &pb.Response{
 		ResponseMsg: &responseMessageOnProcess,
+		Status:      pb.STATUS_ONPROCESS.Enum(),
 	}, nil
 }
 
@@ -633,7 +636,7 @@ func (raft *RaftNode) CommitMembership(address Address, insert bool) error {
 	return nil
 }
 
-func (raft *RaftNode) RequestRaftLog() (*pb.Response) {
+func (raft *RaftNode) RequestRaftLog() *pb.Response {
 	return &pb.Response{
 		Log: raft.log.RaftNodeLog,
 	}
