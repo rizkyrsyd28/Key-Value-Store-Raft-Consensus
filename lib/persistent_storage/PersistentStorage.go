@@ -26,6 +26,10 @@ type PersistentStorage struct {
 func NewPersistentStorage(addr *util.Address) *PersistentStorage {
 	id := fmt.Sprintf("%s_%d", addr.IP, addr.Port)
 	path := fmt.Sprintf("persistent/%s.json", id)
+	// make folder if not exist
+	if _, err := os.Stat("persistent"); os.IsNotExist(err) {
+		os.Mkdir("persistent", 0755)
+	}
 
 	return &PersistentStorage{
 		ID:   id,
