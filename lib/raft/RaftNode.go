@@ -11,7 +11,6 @@ import (
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/persistent_storage"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
@@ -442,7 +441,7 @@ func (raft *RaftNode) executeLogEntries(persistentValues *persistent_storage.Per
 }
 
 func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response, error) {
-	if raft.NodeType != util.LEADER {
+	if raft.NodeType != LEADER {
 		err := errors.New("redirected to leader address")
 		return &pb.Response{
 			RedirectAddress: raft.ClusterLeaderAddress.Address,
