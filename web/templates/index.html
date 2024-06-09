@@ -60,6 +60,13 @@
                         <h2 id="res-append"></h2>
                     </div>
                 </div>
+                <div>
+                  <div class="flex flex-row gap-x-7">
+                      <h2>Request Log</h2>
+                      <button id="btn-reqlog" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                      <div id="res-reqlog"></div>
+                  </div>
+              </div>
             </div>
         </div>
         <div class="mb-10">
@@ -111,6 +118,10 @@
             const delKeyInput = document.querySelector("#del-key");
             const btnDel = document.querySelector("#btn-del");
             const resDel = document.querySelector("#res-del");
+
+            // Request Log
+            const btnReqlog = document.querySelector("#btn-reqlog");
+            const resReqlog = document.querySelector("#res-reqlog");
 
             btnPing && 
                 btnPing.addEventListener("click", (e) => {
@@ -311,6 +322,32 @@
                         }
                     };
                 });
+
+                
+                btnReqlog && 
+                  btnReqlog.addEventListener("click", (e) => {
+                    e.preventDefault()
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/requestlog`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send()
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+                            
+                            if (this.status == 200 && data.message.length < 1) {
+                                resReqlog.innerHTML = `[${this.status}] view CLI terminal for logs`
+                                resReqlog.classList.add("bg-green-500")
+                                resReqlog.classList.add("text-white")
+                            } else {
+                                resReqlog.innerHTML = `[${this.status}] Internal Server Error`
+                                resReqlog.classList.add("bg-red-500")
+                                resReqlog.classList.add("text-white")
+                            }
+                        }
+                    };
+                })
         </script>
     </body>
 </html>

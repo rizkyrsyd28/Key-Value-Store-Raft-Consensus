@@ -208,15 +208,15 @@ func main() {
 				continue
 			}
 
-			// ctx := context.Background()
+			ctx := context.Background()
 
 			function := func() {
 				// TODO: Change To RequestLog
-				// response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
-				// if err != nil {
-				// 	log.Fatalf("Response Error %v", err)
-				// }
-				// fmt.Printf("%s\n", response.GetValue())
+				response, err := client.Services.KV.RequestLog(ctx, &pb.Empty{})
+				if err != nil {
+					log.Fatalf("Response Error %v", err)
+				}
+				fmt.Printf("%s\n", response.GetValue())
 			}
 
 			if enableTime {
