@@ -119,7 +119,7 @@ func (rs *RaftServiceImpl) ApplyMembership(ctx context.Context, request *pb.Appl
 
 	response := &pb.ApplyMembershipResponse{
 		Status:             pb.STATUS_SUCCESS,
-		Log:                []string{"Data1", "Data2", "Data3"},
+		Log:                rs.node.RequestRaftLog().GetLog(),
 		ClusterAddressList: contact,
 	}
 

@@ -62,6 +62,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		Client:             _client,
 		UncommitMembership: nil,
 	}
+	raft.initPersistentStorage()
 
 	if !isContact {
 		raft.initAsLeader()
@@ -69,7 +70,6 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		raft.tryToApplyMembership(contactAddress)
 	}
 
-	raft.initPersistentStorage()
 	raft.startNode()
 
 	return raft
@@ -232,6 +232,10 @@ func (raft RaftNode) tryToApplyMembership(contact *Address) {
 
 	raft.ClusterAddressList.SetAddressPb(response.ClusterAddressList)
 	raft.ClusterLeaderAddress = contact
+	raft.log.RaftNodeLog = response.Log
+	stableValues := raft.PersistentStorage.Load()
+	stableValues.Log = raft.log
+	raft.PersistentStorage.StoreAll(stableValues)
 }
 
 func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Address) {
@@ -298,7 +302,6 @@ func (raft *RaftNode) sendHeartbeat() {
 		wait.Wait()
 		close(responseChan)
 	}()
-	// Now you can range over the responseChan to receive responses
 	for response := range responseChan {
 		// TO DO: handle if the response is not as expected
 		if response.Status != pb.STATUS_SUCCESS {

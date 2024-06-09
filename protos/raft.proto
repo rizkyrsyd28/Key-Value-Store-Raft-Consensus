@@ -22,7 +22,7 @@ message ApplyMembershipRequest {
 }
 
 message ApplyMembershipResponse {
-    repeated string     log                 = 1;
+    RaftNodeLog         log                 = 1;
     repeated Address    clusterAddressList  = 2;
 
     // Base Response
