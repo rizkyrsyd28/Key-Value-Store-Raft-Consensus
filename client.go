@@ -70,7 +70,6 @@ func main() {
 				Status:          pb.STATUS_REDIRECTED.Enum(),
 			}
 
-			fmt.Println(response.Status.String() == pb.STATUS_REDIRECTED.String())
 			for response.Status.String() == pb.STATUS_REDIRECTED.String() {
 				// fmt.Println("REDIRECT")
 				response, err = client.Services.KV.Ping(ctx, &pb.Empty{})
