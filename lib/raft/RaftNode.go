@@ -85,11 +85,11 @@ func (raft *RaftNode) initAsLeader() {
 
 func (raft *RaftNode) initPersistentStorage() {
 	raft.PersistentStorage = persistent_storage.NewPersistentStorage(raft.Address)
-	res := raft.PersistentStorage.Load()
-	if res != nil {
-		fmt.Println("Persistent storage loaded: ", res)
+	persistentStorage := raft.PersistentStorage.Load()
+	if persistentStorage != nil {
+		fmt.Println("Persistent storage loaded: ", persistentStorage)
 
-		logEntries := res.Log.Entries
+		logEntries := persistentStorage.Log.Entries
 		for _, entry := range logEntries {
 			// Execute log entry
 			if entry != nil {
@@ -104,15 +104,15 @@ func (raft *RaftNode) initPersistentStorage() {
 				Entries: make([]*pb.RaftLogEntry, 1),
 			},
 		}
-		dummy := persistent_storage.PersistValues{
+		newInitializedPerStorage := persistent_storage.PersistValues{
 			ElectionTerm: 1,
 			VotedFor:     raft.Address,
 			Log:          RaftLog,
 			CommittedLength: 0,
 		}
 
-		raft.PersistentStorage.StoreAll(&dummy)
-		fmt.Println("Persistent storage created: ", res)
+		raft.PersistentStorage.StoreAll(&newInitializedPerStorage)
+		fmt.Println("Persistent storage created", newInitializedPerStorage)
 	}
 
 }
