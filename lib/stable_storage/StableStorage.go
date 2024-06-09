@@ -29,7 +29,10 @@ type StableStorage struct {
 
 func NewStableStorage(addr Address) *StableStorage {
 	id := fmt.Sprintf("%s_%d", addr.IP, addr.Port)
-	path := fmt.Sprintf("persistence/%s.json", id)
+	path := fmt.Sprintf("/persistence/%s.json", id)
+	fmt.Println("id", id)
+	fmt.Println("path", path)
+
 	return &StableStorage{
 		ID:   id,
 		Path: path,
