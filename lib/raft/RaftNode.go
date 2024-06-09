@@ -159,11 +159,14 @@ func (raft *RaftNode) requestVote() {
 	fmt.Println("Requesting Vote")
 	var wait sync.WaitGroup
 	for _, contact := range contactList {
+		logger.DebugLogger.Println("contact", contact)
+		contact := contact
 		wait.Add(1)
 		go func(address Address) {
 			defer wait.Done() // send request vote to other nodes
 			if contact.Address != raft.Address.Address {
 				raft.Client.SetAddress(&contact)
+				logger.DebugLogger.Println("coonnntt", contact.Address, raft.Address.Address)
 				res, err := raft.Client.Services.Raft.RequestVote(context.Background(), &pb.RequestVoteRequest{
 					VotedFor: raft.Address.Address,
 					Term:     raft.ElectionTerm,
