@@ -302,7 +302,6 @@ func (raft *RaftNode) sendHeartbeat() {
 		wait.Wait()
 		close(responseChan)
 	}()
-	// Now you can range over the responseChan to receive responses
 	for response := range responseChan {
 		// TO DO: handle if the response is not as expected
 		if response.Status != pb.STATUS_SUCCESS {

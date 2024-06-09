@@ -219,7 +219,7 @@ func main() {
 			}
 
 		case "request_log":
-			if len(command) != 2 {
+			if len(command) != 1 {
 				fmt.Println("Invalid put command. Format: request_log")
 				continue
 			}
@@ -232,7 +232,7 @@ func main() {
 				if err != nil {
 					log.Fatalf("Response Error %v", err)
 				}
-				fmt.Printf("%s\n", response.GetValue())
+				fmt.Printf("%s\n", response.GetLog())
 			}
 
 			if enableTime {
