@@ -53,8 +53,8 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 			},
 		},
 		PersistentStorage:  persistent_storage.NewPersistentStorage(address),
-		ElectionTerm:       0,
-		CommittedLength:    0,
+		ElectionTerm:       TERM_INITIAL,
+		CommittedLength:       0,
 		VotedFor:           nil,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
@@ -110,9 +110,9 @@ func (raft *RaftNode) initPersistentStorage() {
 			},
 		}
 		newInitializedPerStorage := persistent_storage.PersistValues{
-			ElectionTerm:    0,
-			VotedFor:        nil,
-			Log:             RaftLog,
+			ElectionTerm: uint64(TERM_INITIAL),
+			VotedFor:     nil,
+			Log:          RaftLog,
 			CommittedLength: 0,
 		}
 
@@ -362,6 +362,7 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	}
 
 	log := persistentVars.Log.Entries
+	logger.DebugLogger.Println("log", log, "prefixLen", prefixLen, "prefixTerm", prefixTerm)
 	logOk := len(log) >= prefixLen && (prefixLen == 0 || log[prefixLen-1].Term == prefixTerm)
 
 	response := &pb.HeartbeatResponse{
@@ -480,7 +481,7 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 
 	logger.DebugLogger.Println("term in uint", uint64(raft.ElectionTerm))
 	newLogEntry := &pb.RaftLogEntry{
-		Term:    0,
+		Term:    uint64(raft.ElectionTerm),
 		Command: command,
 	}
 	logger.DebugLogger.Println("newLogEntry", newLogEntry)
