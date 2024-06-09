@@ -49,16 +49,15 @@ func InitLoadRaftLogs() {
 }
 
 func WriteRaftLog(term uint64, command string) {
-    entry := &pb.RaftLogEntry{
-        Term:    term,
-        Command: command,
-    }
+	entry := &pb.RaftLogEntry{
+		Term:    term,
+		Command: command,
+	}
 
-    RaftLog.Entries = append(RaftLog.Entries, entry)
+	RaftLog.Entries = append(RaftLog.Entries, entry)
 
-    LogToFile(entry, FileName, "logs")
+	LogToFile(entry, FileName, "logs")
 }
-
 
 // To create a new copy log file
 func (log *RaftNodeLog) SaveRaftLogToFile(filename string) error {

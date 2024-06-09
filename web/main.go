@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -101,7 +100,6 @@ func Get(c *client.GRPCClient) gin.HandlerFunc {
 
 		response, err := c.Services.KV.Get(ctx, &pb.KeyRequest{Key: input.Key})
 		if err != nil {
-			log.Println(err.Error())
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Something Wrong With Server"})
 			return
 		}

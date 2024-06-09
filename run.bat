@@ -7,7 +7,7 @@ set TEST_DIR=.\test
 
 set SERVER=server
 set CLIENT=client
-set CLIENT=.\web\main
+set WEB=.\web\main
 
 :: Generate Protobuf
 if "%1" == "protobuf" (
@@ -64,7 +64,7 @@ if "%1" == "web" (
     )
     
     echo Starting client connect to server %2:%3
-    go run .\web\main.go %2 %3
+    go run %WEB%.go %2 %3
 
     exit /b 0
 )

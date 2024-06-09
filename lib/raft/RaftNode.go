@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
-	persistance_storage "github.com/Sister20/if3230-tubes-dark-syster/lib/stable_storage"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/persistent_storage"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
@@ -22,22 +22,19 @@ type RaftNode struct {
 	Address              *Address
 	NodeType             NodeType
 	log                  logger.RaftNodeLog
+	ElectionTerm         uint32
 	App                  *app.KVStore
-	PersistentStorage    *persistance_storage.PersistentStorage
-	ElectionTerm         int
-	CommitLength         uint64
+	PersistentStorage    *persistent_storage.PersistentStorage
+	CommittedLength         uint64
 	VotedFor             *Address
 	ClusterAddressList   ClusterNodeList
 	ClusterLeaderAddress *Address
-	VotesReceived        []Address
-	ElectionTimeout      time.Duration
+	ElectionTimeout      time.Duration // in seconds
+	HeartbeatInterval    time.Duration // in seconds
 	Client               *client.GRPCClient
 	NodeMutex            sync.Mutex // goroutine
 	UncommitMembership   *MembershipApply
-
-	interruptChan chan struct{}
-	shutdownChan  chan struct{}
-	wg            sync.WaitGroup
+	timer                *time.Timer
 }
 
 func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddress *Address) *RaftNode {
@@ -53,25 +50,28 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		NodeType: FOLLOWER,
 		log: logger.RaftNodeLog{
 			RaftNodeLog: &pb.RaftNodeLog{
-				Entries: []*pb.RaftLogEntry{},
+				Entries: make([]*pb.RaftLogEntry, 0),
 			},
 		},
-		PersistentStorage:  persistance_storage.NewPersistentStorage(address),
+		PersistentStorage:  persistent_storage.NewPersistentStorage(address),
 		ElectionTerm:       0,
-		CommitLength:       0,
+		CommittedLength:       0,
 		VotedFor:           nil,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
-		ElectionTimeout:    RandomElectionTimeout(4, 5),
+		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
+		HeartbeatInterval:  time.Duration(HEARTBEAT_INTERVAL) * time.Second,
 		Client:             _client,
 		UncommitMembership: nil,
 	}
 
 	if !isContact {
-		raft.ClusterAddressList.AddAddress(address)
 		raft.initAsLeader()
 	} else {
 		raft.tryToApplyMembership(contactAddress)
 	}
+
+	raft.initPersistentStorage()
+	raft.startNode()
 
 	return raft
 }
@@ -79,105 +79,134 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 func (raft *RaftNode) initAsLeader() {
 	// Print Log Initalize as Leader
 	raft.ClusterLeaderAddress = raft.Address
+	raft.ClusterAddressList.AddAddress(raft.Address)
 	raft.NodeType = LEADER
+	fmt.Println("Leader Initalize")
 }
 
-// func (raft *RaftNode) leaderHeartbeat() {
-// 	if raft.NodeType == LEADER {
-// 		addrs := raft.ClusterAddressList.GetAllAddress()
-// 		fmt.Printf("Sending heartbeat... %v\n", addrs)
+func (raft *RaftNode) initPersistentStorage() {
+	raft.PersistentStorage = persistent_storage.NewPersistentStorage(raft.Address)
+	res := raft.PersistentStorage.Load()
+	if res != nil {
+		fmt.Println("Persistent storage loaded: ", res)
 
-// 		for _, addr := range addrs {
-// 			raft.ThreadPool.Submit(raft.sendHeartbeat, addr)
-// 		}
-// 	}
+		logEntries := res.Log.Entries
+		for _, entry := range logEntries {
+			// Execute log entry
+			if entry != nil {
+				fmt.Println("Executing log entry: ", entry)
+				raft.App.Execute(entry.Command)
+			}
+		}
+		return
+	} else {
+		RaftLog := logger.RaftNodeLog{
+			RaftNodeLog: &pb.RaftNodeLog{
+				Entries: make([]*pb.RaftLogEntry, 1),
+			},
+		}
+		dummy := persistent_storage.PersistValues{
+			ElectionTerm: 1,
+			VotedFor:     raft.Address,
+			Log:          RaftLog,
+			CommittedLength: 0,
+		}
 
-// 	raft.interruptAndRestartLoop()
-// }
+		raft.PersistentStorage.StoreAll(&dummy)
+		fmt.Println("Persistent storage created: ", res)
+	}
 
-func (raft *RaftNode) leaderHeartbeat() {
+}
+
+func (raft RaftNode) ResetElectionTimer() {
+	raft.timer.Reset(raft.ElectionTimeout)
+}
+
+func (raft RaftNode) ResetHeartbeatTimer() {
+	raft.timer.Reset(raft.HeartbeatInterval)
+}
+
+func (raft *RaftNode) startNode() {
+	fmt.Println(raft.NodeType)
 	if raft.NodeType == LEADER {
-		addrs := raft.ClusterAddressList.GetAllAddress()
-		fmt.Printf("Sending heartbeat... %v\n", addrs)
-
-		var wg sync.WaitGroup
-		for _, addr := range addrs {
-			wg.Add(1)
-			go func(addr *Address) {
-				defer wg.Done()
-				raft.sendHeartbeat(addr.ToString())
-			}(&addr)
-		}
-		wg.Wait()
+		raft.timer = time.NewTimer(raft.HeartbeatInterval)
+	} else {
+		raft.timer = time.NewTimer(raft.ElectionTimeout)
 	}
-
-	raft.interruptAndRestartLoop()
+	go func() {
+		for {
+			select {
+			case <-raft.timer.C:
+				if raft.NodeType == LEADER {
+					raft.sendHeartbeat()
+					raft.ResetHeartbeatTimer()
+				} else {
+					raft.requestVote() // reset election timer inside requestVote
+				}
+			}
+			fmt.Println("=====")
+		}
+	}()
 }
 
-func (raft *RaftNode) sendHeartbeat(id string) {
-	clusterNode := raft.ClusterAddressList.Get(id)
-	addr := clusterNode.Address
+func (raft *RaftNode) requestVote() {
+	raft.NodeType = CANDIDATE
 
-	if addr == raft.Address {
-		return
+	contactList := raft.ClusterAddressList.GetAllAddress()
+
+	// TODO: update election term on stable storage
+
+	responseVote := make(chan pb.RequestVoteResponse)
+	votedCount := 1
+
+	fmt.Println("Requesting Vote")
+	var wait sync.WaitGroup
+	for _, contact := range contactList {
+		wait.Add(1)
+		go func(address Address) {
+			defer wait.Done() // send request vote to other nodes
+			if contact.Address != raft.Address.Address {
+				raft.Client.SetAddress(&contact)
+				res, err := raft.Client.Services.Raft.RequestVote(context.Background(), &pb.RequestVoteRequest{
+					VotedFor: raft.Address.Address,
+					Term:     raft.ElectionTerm,
+					// LogLength: persistentStorage.length,
+					// LogTerm: persistentStorage.term,
+					// Sender: raft.Address.Address,
+				})
+				if err != nil {
+					fmt.Println("Error While Send Heartbeat")
+				} else {
+					fmt.Println("sending heartbeat...")
+					responseVote <- *res
+				}
+			}
+		}(contact)
 	}
 
-	persistValues := raft.PersistentStorage.Load()
-	prefixLen := clusterNode.SentLn
-	suffix := persistValues.Log.Entries[prefixLen:]
-	var prefixTerm uint64
-	prefixTerm = 0
-	if prefixLen > 0 {
-		prefixTerm = persistValues.Log.Entries[prefixLen-1].Term
-	}
+	// rerandom election timeout and reset timer
+	raft.ElectionTimeout = RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX)
+	raft.timer.Reset(raft.ElectionTimeout)
 
-	msg := &pb.HeartbeatRequest{
-		LeaderAddress:  raft.Address.Address,
-		Term:           uint64(raft.ElectionTerm),
-		PrefixLength:   uint64(prefixLen),
-		PrefixTerm:     prefixTerm,
-		Suffix:         suffix,
-		CommitLength:   uint64(persistValues.CommittedLength),
-		ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
-	}
+	go func() {
+		wait.Wait()
+		close(responseVote)
+	}()
 
-	// resp, err := raft.RPCHandler.Request(addr, string("Heartbeat"), msg)
-	resp, err := raft.Client.Services.Raft.SendHeartbeat(context.Background(), msg)
-	if err != nil {
-		return
-	}
-
-	if resp.Status != pb.STATUS_SUCCESS {
-		return
-	}
-
-	respTerm := resp.Term
-	ack := resp.Ack
-	successAppend := resp.SuccessAppend
-
-	ackedLen := clusterNode.AckLn
-
-	persistValues = raft.PersistentStorage.Load()
-	if respTerm == persistValues.ElectionTerm && raft.NodeType == LEADER {
-		if successAppend && ack >= uint32(ackedLen) {
-			clusterNode.SentLn = int64(ack)
-			clusterNode.AckLn = int64(ack)
-			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
-			raft.executeLogEntries(persistValues)
-		} else if clusterNode.SentLn > 0 {
-			clusterNode.SentLn = clusterNode.SentLn - 1
-			raft.ClusterAddressList.PatchAddress(addr, clusterNode)
-
-			// TODO: REPLICATE LOG
+	for res := range responseVote {
+		if res.Granted {
+			votedCount++
 		}
-	} else if respTerm > persistValues.ElectionTerm {
-		persistValues.ElectionTerm = respTerm
-		persistValues.VotedFor = nil
-		raft.PersistentStorage.StoreAll(persistValues)
-		raft.NodeType = FOLLOWER
-		raft.VotesReceived = make([]Address, 0)
-		raft.interruptAndRestartLoop()
-		return
+	}
+
+	// Check if votedCount is enough to become the leader
+	if votedCount > len(contactList)/2 {
+		raft.initAsLeader()
+		raft.ResetHeartbeatTimer()
+		fmt.Println("Became the leader, votedCount:", votedCount)
+	} else {
+		fmt.Println("Failed to become the leader, votedCount:", votedCount)
+		// timer continue running
 	}
 }
 
@@ -212,6 +241,103 @@ func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Ad
 	fmt.Println("Method Not Implemented")
 }
 
+func (raft *RaftNode) sendHeartbeat() {
+	type HeartbeatResponseWithAddress struct {
+		Response pb.HeartbeatResponse
+		Address  Address
+	}
+
+	contactList := raft.ClusterAddressList.GetAllAddress()
+
+	// responseChan := make(chan pb.HeartbeatResponse)
+	responseChan := make(chan HeartbeatResponseWithAddress)
+	var wait sync.WaitGroup
+	persistentVars := raft.PersistentStorage.Load()
+
+	for _, contact := range contactList {
+		wait.Add(1)
+		go func(address Address) {
+			defer wait.Done()
+			raft.Client.SetAddress(&contact)
+
+			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
+			prefixLen := clusterNode.SentLn
+			fmt.Println("prefLn", prefixLen)
+			fmt.Println("stabVa", persistentVars)
+			suffix := persistentVars.Log.Entries[prefixLen:]
+			var prefixTerm uint64
+			prefixTerm = 0
+			if prefixLen > 0 {
+				prefixTerm = persistentVars.Log.Entries[prefixLen-1].Term
+			}
+
+			res, err := raft.Client.Services.Raft.SendHeartbeat(context.Background(), &pb.HeartbeatRequest{
+				Sender:         raft.Address.Address,
+				Term:           uint64(raft.ElectionTerm),
+				PrefixLength:   uint64(prefixLen),
+				PrefixTerm:     prefixTerm,
+				Suffix:         suffix,
+				CommitLength:   uint64(persistentVars.CommittedLength),
+				ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
+			})
+			if err != nil {
+				fmt.Println("Error While Send Heartbeat")
+			} else {
+				fmt.Println("sending heartbeat...")
+				// responseChan <- *res
+				responseChan <- HeartbeatResponseWithAddress{
+					Response: *res,
+					Address:  contact,
+				}
+
+			}
+		}(contact)
+	}
+	// Close the channel after all goroutines finish sending responses
+	go func() {
+		wait.Wait()
+		close(responseChan)
+	}()
+	// Now you can range over the responseChan to receive responses
+	for response := range responseChan {
+		// TO DO: handle if the response is not as expected
+
+		if response.Response.Status != pb.STATUS_SUCCESS {
+			fmt.Printf("Request from %v:%v not succeed - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
+
+			return
+		}
+
+		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
+
+		respTerm := response.Response.Term
+		ack := response.Response.Ack
+		successAppend := response.Response.SuccessAppend
+
+		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
+		ackedLen := clusterNode.AckLn
+
+		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
+			if successAppend && ack >= uint32(ackedLen) {
+				clusterNode.SentLn = int64(ack)
+				clusterNode.AckLn = int64(ack)
+				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
+
+				// TODO: implement commitLogEntries
+				raft.executeLogEntries(persistentVars)
+			} else if clusterNode.SentLn > 0 {
+				clusterNode.SentLn = clusterNode.SentLn - 1
+				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
+			}
+		} else if respTerm > persistentVars.ElectionTerm {
+			persistentVars.ElectionTerm = respTerm
+			raft.PersistentStorage.StoreAll(persistentVars)
+			raft.NodeType = FOLLOWER
+			return
+		}
+	}
+}
+
 func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	leaderAddr := req.LeaderAddress
 	reqTerm := req.Term
@@ -221,35 +347,32 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	suffix := req.Suffix
 	clusterAddrs := req.ClusterAddress
 
-	stableVars := raft.PersistentStorage.Load()
-	if reqTerm > uint64(stableVars.ElectionTerm) {
-		stableVars.ElectionTerm = uint64(reqTerm)
-		stableVars.VotedFor = nil
-		raft.PersistentStorage.StoreAll(stableVars)
-		raft.interruptAndRestartLoop()
+	persistentVars := raft.PersistentStorage.Load()
+	if reqTerm > uint64(persistentVars.ElectionTerm) {
+		persistentVars.ElectionTerm = uint64(reqTerm)
+		persistentVars.VotedFor = nil
+		raft.PersistentStorage.StoreAll(persistentVars)
 	}
 
-	if reqTerm == uint64(stableVars.ElectionTerm) {
+	if reqTerm == uint64(persistentVars.ElectionTerm) {
 		raft.NodeType = FOLLOWER
-		raft.VotesReceived = make([]Address, 0)
 		raft.ClusterLeaderAddress = &Address{Address: leaderAddr}
 	}
 
-	log := stableVars.Log.Entries
+	log := persistentVars.Log.Entries
 	logOk := len(log) >= prefixLen && (prefixLen == 0 || log[prefixLen-1].Term == prefixTerm)
 
 	response := &pb.HeartbeatResponse{
 		Status: pb.STATUS_SUCCESS,
-		Term:   uint64(stableVars.ElectionTerm),
+		Term:   uint64(persistentVars.ElectionTerm),
 	}
 
-	if reqTerm == uint64(stableVars.ElectionTerm) && logOk {
+	if reqTerm == uint64(persistentVars.ElectionTerm) && logOk {
 		raft.ClusterAddressList.SetAddressPb(clusterAddrs)
-		raft.appendEntries(prefixLen, leaderCommit, suffix, stableVars)
+		raft.appendEntries(prefixLen, leaderCommit, suffix, persistentVars)
 		ack := prefixLen + len(suffix)
 		response.Ack = uint32(ack)
 		response.SuccessAppend = true
-		raft.interruptAndRestartLoop()
 	} else {
 		response.Ack = 0
 		response.SuccessAppend = false
@@ -258,8 +381,8 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	return response, nil
 }
 
-func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, stableVars *persistance_storage.PersistValues) {
-	log := stableVars.Log.Entries
+func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, persistentVars *persistent_storage.PersistValues) {
+	log := persistentVars.Log.Entries
 
 	if len(suffix) > 0 && len(log) > prefixLen {
 		idx := FindMin(len(log), prefixLen+len(suffix)) - 1
@@ -274,20 +397,20 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 		}
 	}
 
-	stableVars.Log.Entries = log
+	persistentVars.Log.Entries = log
 
-	commitLength := stableVars.CommittedLength
+	commitLength := persistentVars.CommittedLength
 	if uint64(leaderCommit) > commitLength {
 		for i := commitLength; i < uint64(leaderCommit); i++ {
 			raft.App.Execute(log[i].Command)
 		}
-		stableVars.CommittedLength = uint64(leaderCommit)
+		persistentVars.CommittedLength = uint64(leaderCommit)
 	}
 
-	raft.PersistentStorage.StoreAll(stableVars)
+	raft.PersistentStorage.StoreAll(persistentVars)
 }
 
-func (raft *RaftNode) executeLogEntries(persistentValues *persistance_storage.PersistValues) {
+func (raft *RaftNode) executeLogEntries(persistentValues *persistent_storage.PersistValues) {
 	// 50% + 1 mechanism
 	minAck := math.Ceil(float64(len(raft.ClusterAddressList.GetAllAddress())+1) / 2)
 	log := persistentValues.Log.Entries
@@ -352,11 +475,11 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 		Command: command,
 	}
 	raft.log.Entries = append(raft.log.Entries, newLogEntry)
-	raft.PersistentStorage.StoreAll(&persistance_storage.PersistValues{
-		ElectionTerm:    uint64(raft.ElectionTerm),
-		VotedFor:        raft.VotedFor,
-		Log:             raft.log,
-		CommittedLength: raft.CommitLength,
+	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
+		ElectionTerm: uint64(raft.ElectionTerm),
+		VotedFor:     raft.VotedFor,
+		Log:          raft.log,
+		CommittedLength: raft.CommittedLength,
 	})
 	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())
 	clusterNode.AckLn = int64(len(raft.log.Entries))
@@ -388,60 +511,4 @@ func (raft *RaftNode) CommitMembership(address Address, insert bool) error {
 	}
 
 	return nil
-}
-
-func (raft *RaftNode) startLoop() {
-	raft.interruptChan = make(chan struct{})
-	raft.shutdownChan = make(chan struct{})
-
-	raft.wg.Add(1)
-	go raft.runLoop()
-}
-
-func (raft *RaftNode) runLoop() {
-	defer raft.wg.Done()
-
-	ticker := time.NewTicker(raft.getLoopInterval())
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			raft.performLoopTask()
-		case <-raft.interruptChan:
-			return
-		case <-raft.shutdownChan:
-			return
-		}
-	}
-}
-
-const HeartbeatInterval = time.Duration(util.HEARTBEAT_INTERVAL) * time.Second
-
-func (raft *RaftNode) getLoopInterval() time.Duration {
-	if raft.NodeType == LEADER {
-		return HeartbeatInterval
-	}
-
-	// Interval waktu random untuk pemilihan
-	return time.Duration(RandomElectionTimeout(int(ELECTION_TIMEOUT_MIN), int(ELECTION_TIMEOUT_MAX)).Nanoseconds())
-}
-
-func (raft *RaftNode) performLoopTask() {
-	if raft.NodeType == LEADER {
-		raft.leaderHeartbeat()
-	} else {
-		// TODO: requestVote or other tasks
-		// raft.requestVote()
-		fmt.Println("Request Vote")
-	}
-}
-
-func (raft *RaftNode) interruptAndRestartLoop() {
-	raft.interruptChan <- struct{}{}
-}
-
-func (raft *RaftNode) stopLoop() {
-	close(raft.shutdownChan)
-	raft.wg.Wait()
 }

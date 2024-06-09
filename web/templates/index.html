@@ -153,7 +153,7 @@
                             data = JSON.parse(this.responseText);
 
                             if (this.status == 200 && data.message.length < 1) {
-                                resGet.innerHTML = `[${this.status}] ${data.message}`
+                                resGet.innerHTML = `[${this.status}] "${data.message}"`
                                 resGet.classList.add("bg-green-500")
                                 resGet.classList.add("text-white")
                             } else {
@@ -183,7 +183,7 @@
                             data = JSON.parse(this.responseText);
 
                             if (this.status == 200 && data.message.length < 1) {
-                                resSet.innerHTML = `[${this.status}] ${data.message}`
+                                resSet.innerHTML = `[${this.status}] "${data.message}"`
                                 resSet.classList.add("bg-green-500")
                                 resSet.classList.add("text-white")
                             } else {
@@ -240,8 +240,8 @@
                         if (this.readyState === XMLHttpRequest.DONE) {
                             data = JSON.parse(this.responseText);
 
-                            if (this.status == 200 && data.message.length < 1) {
-                                resDel.innerHTML = `[${this.status}] ${data.message}`
+                            if (this.status == 200) {
+                                resDel.innerHTML = `[${this.status}] "${data.message}"`
                                 resDel.classList.add("bg-green-500")
                                 resDel.classList.add("text-white")
                             } else {
@@ -270,8 +270,8 @@
                         if (this.readyState === XMLHttpRequest.DONE) {
                             data = JSON.parse(this.responseText);
 
-                            if (this.status == 200 && data.message.length < 1) {
-                                resAppend.innerHTML = `[${this.status}] ${data.message}`
+                            if (this.status == 200) {
+                                resAppend.innerHTML = `[${this.status}] "${data.message}"`
                                 resAppend.classList.add("bg-green-500")
                                 resAppend.classList.add("text-white")
                             } else {
