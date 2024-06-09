@@ -280,8 +280,21 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 	raft.StableStorage.StoreAll(stableVars)
 }
 
-func (raft RaftNode) Execute(request interface{}) interface{} {
-	return errors.New("Method Not Implemented")
+func (raft *RaftNode) Execute(ctx context.Context, command string) *pb.ExecuteResponse {
+	// Append to log only, no execute on app
+	log := &pb.RaftLogEntry{
+		Term:    uint64(raft.ElectionTerm),
+		Command: command,
+	}
+	raft.log.Entries = append(raft.log.Entries, log)
+	raft.StableStorage.StoreAll(nil)
+	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())
+	clusterNode.AckLn = int64(len(raft.log.Entries))
+	raft.ClusterAddressList.PatchAddress(raft.Address, clusterNode)
+
+	return &pb.ExecuteResponse{
+		Value: "Test Execute",
+	}
 }
 
 func (raft *RaftNode) AddMembership(address Address, insert bool) {

@@ -109,3 +109,12 @@ message HeartbeatResponse {
     optional Address redirectedAddress = 6;
 
 }
+
+message ExecuteRequest {
+    string command = 1;
+    Address sender = 2;
+}
+
+message ExecuteResponse {
+    string value = 1;
+}
