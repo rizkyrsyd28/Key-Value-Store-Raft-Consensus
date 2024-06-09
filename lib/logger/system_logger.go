@@ -1,10 +1,47 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
 )
+
+type LogLevel int
+
+const (
+	DEBUG LogLevel = iota
+	INFO
+	WARNING
+	ERROR
+	FATAL
+)
+
+func (level LogLevel) String() string {
+	switch level {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARNING:
+		return "WARNING"
+	case ERROR:
+		return "ERROR"
+	case FATAL:
+		return "FATAL"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+type SystemLogEntry struct {
+	Timestamp time.Time `json:"timestamp"`
+	NodeAddr  string    `json:"node_addr"`
+	NodePort  string    `json:"node_port"`
+	Level     LogLevel  `json:"level"`
+	Message   string    `json:"message"`
+	Type      string    `json:"type"`
+}
 
 var (
 	DebugLogger   *log.Logger
@@ -23,7 +60,7 @@ func init() {
 }
 
 func WriteSystemLog(level LogLevel, msg string, nodeAddr string, nodePort string) {
-	entry := LogEntry{
+	entry := SystemLogEntry{
 		Timestamp: time.Now(),
 		NodeAddr:  nodeAddr,
 		NodePort:  nodePort,
@@ -31,7 +68,7 @@ func WriteSystemLog(level LogLevel, msg string, nodeAddr string, nodePort string
 		Message:   msg,
 		Type:      "system",
 	}
-	LogToFile(entry, "system.log")
+	LogToFile(entry, fmt.Sprintf("%s_%s_%s", nodeAddr, nodePort, "system_log.json"), LogDir)
 }
 
 func SetSystemLogFlags(flags int) {

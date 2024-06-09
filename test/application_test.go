@@ -15,8 +15,8 @@ func TestKVPing(t *testing.T) {
 
 func TestKVGetEmpty(t *testing.T) {
 	kv := NewKVStore()
-	result := kv.Get("any")
-	if result != "" {
+	result, err := kv.Get("any")
+	if result != "" && err != nil {
 		t.Fatalf("Err get when key doesn't exist")
 	}
 }
@@ -24,7 +24,10 @@ func TestKVGetEmpty(t *testing.T) {
 func TestKVSetGetCorrectKey(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("azero", "azimah")
-	result := kv.Get("azero")
+	result, err := kv.Get("azero")
+	if err != nil {
+		t.Fatalf("Err get when key exist")
+	}
 	if result != "azimah" {
 		t.Fatalf("Fail to set then get via correct key")
 	}
@@ -33,7 +36,10 @@ func TestKVSetGetCorrectKey(t *testing.T) {
 func TestKVSetGetWrongKey(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("abdillah", "rizky")
-	result := kv.Get("abdillah")
+	result, err := kv.Get("abdillah")
+	if err != nil {
+		t.Fatalf("Err get when key exist")
+	}
 	if result != "rizky" {
 		t.Fatalf("Err set then get via wrong key")
 	}
@@ -42,12 +48,18 @@ func TestKVSetGetWrongKey(t *testing.T) {
 func TestKVChangeKey(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("rizky", "syaban")
-	result := kv.Get("rizky")
+	result, err := kv.Get("rizky")
+	if err != nil {
+		t.Fatalf("Err get value when key exist")
+	}
 	if result != "syaban" {
 		t.Fatalf("Err set then get via wrong key")
 	}
 	kv.Set("rizky", "abdillah")
-	result = kv.Get("rizky")
+	result, err = kv.Get("rizky")
+	if err != nil {
+		t.Fatalf("Err get value when key exist")
+	}
 	if result != "abdillah" {
 		t.Fatalf("Err set new value to a key")
 	}
@@ -57,7 +69,10 @@ func TestKVSetThenDeleteCorrectly(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("ab", "cd")
 	kv.Delete("ab")
-	result := kv.Get("ab")
+	result, err := kv.Get("ab")
+	if result != "" && err != nil {
+		t.Fatalf("Error deleting data")
+	}
 	if result != "" {
 		t.Fatalf("Error deleting data")
 	}
@@ -66,7 +81,10 @@ func TestKVSetThenDeleteCorrectly(t *testing.T) {
 func TestKVStrLen(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("ab", "yan")
-	length := kv.Strlen("ab")
+	length, err := kv.Strlen("ab")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 	if length != 3 {
 		t.Fatalf("Err determining value length")
 	}
@@ -75,7 +93,10 @@ func TestKVStrLen(t *testing.T) {
 func TestKVSetThenDeleteIncorrectly(t *testing.T) {
 	kv := NewKVStore()
 	kv.Delete("ab")
-	result := kv.Get("ab")
+	result, err := kv.Get("ab")
+	if result != "" && err != nil {
+		t.Fatalf("Error deleting data")
+	}
 	if result != "" {
 		t.Fatalf("Error deleting data")
 	}
@@ -85,8 +106,29 @@ func TestKVAppend(t *testing.T) {
 	kv := NewKVStore()
 	kv.Set("miya", " BI")
 	kv.Append("miya", "segsual")
-	result := kv.Get("miya")
+	result, err := kv.Get("miya")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 	if result != " BIsegsual" {
 		t.Fatalf("Error appending value")
+	}
+}
+
+func TestKVExecute(t *testing.T) {
+	kv := NewKVStore()
+	result, err := kv.Execute("SET ab yan")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if result != "OK" {
+		t.Fatalf("Error set throigh execute")
+	}
+	result, err = kv.Execute("GET ab")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if(result != "yan") {
+		t.Fatalf("Error get through execute")
 	}
 }

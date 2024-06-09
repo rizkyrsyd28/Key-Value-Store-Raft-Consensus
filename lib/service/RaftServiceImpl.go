@@ -137,13 +137,19 @@ func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestV
 }
 
 func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	response, err := rs.node.Heartbeat(ctx, request)
 
-	response := pb.HeartbeatResponse{
-		Ack:           35,
-		Term:          1,
-		SuccessAppend: true,
+	if err != nil {
+		return nil, err
 	}
-	return &response, nil
+
+	// response := pb.HeartbeatResponse{
+	// 	Ack:           35,
+	// 	Term:          1,
+	// 	SuccessAppend: true,
+	// }
+
+	return response, nil
 }
 
 func (rs *RaftServiceImpl) AddUpdateCluster(ctx context.Context, request *pb.AddUpdateClusterRequest) (*pb.AddUpdateClusterResponse, error) {

@@ -4,60 +4,54 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
+	"path/filepath"
 )
-
-type LogLevel int
 
 const (
-	DEBUG LogLevel = iota
-	INFO
-	WARNING
-	ERROR
-	FATAL
+    LogDir = "logs"
 )
 
-func (level LogLevel) String() string {
-	switch level {
-	case DEBUG:
-		return "DEBUG"
-	case INFO:
-		return "INFO"
-	case WARNING:
-		return "WARNING"
-	case ERROR:
-		return "ERROR"
-	case FATAL:
-		return "FATAL"
-	default:
-		return "UNKNOWN"
+func LogToFile(entry interface{}, filename string, logDir string) {
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		err := os.Mkdir(logDir, 0755)
+		if err != nil {
+			fmt.Printf("Error creating log directory: %v\n", err)
+			return
+		}
 	}
-}
 
-type LogEntry struct {
-	Timestamp time.Time `json:"timestamp"`
-	NodeAddr  string    `json:"node_addr"`
-	NodePort  string    `json:"node_port"`
-	Level     LogLevel  `json:"level"`
-	Message   string    `json:"message"`
-	Type      string    `json:"type"`
-}
+	filePath := filepath.Join(logDir, filename)
 
-func LogToFile(entry LogEntry, filename string) {
-	logBytes, err := json.Marshal(entry)
+	var logs []interface{}
+	
+	// Read existing log file if it exists
+	if _, err := os.Stat(filePath); err == nil {
+		logFile, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Printf("Error reading log file: %v\n", err)
+			return
+		}
+
+		err = json.Unmarshal(logFile, &logs)
+		if err != nil {
+			fmt.Printf("Error unmarshaling log file: %v\n", err)
+			return
+		}
+	}
+
+	// Append new entry
+	logs = append(logs, entry)
+
+	// Marshal the logs slice back to JSON
+	logBytes, err := json.Marshal(logs)
 	if err != nil {
-		fmt.Printf("Error marshaling log entry: %v\n", err)
+		fmt.Printf("Error marshaling log entries: %v\n", err)
 		return
 	}
 
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	// Write the updated log entries back to the file
+	err = os.WriteFile(filePath, logBytes, 0644)
 	if err != nil {
-		fmt.Printf("Error opening log file: %v\n", err)
-		return
-	}
-	defer f.Close()
-
-	if _, err := f.Write(append(logBytes, '\n')); err != nil {
 		fmt.Printf("Error writing to log file: %v\n", err)
 	}
 }

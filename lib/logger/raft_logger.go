@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
+	"path/filepath"
+
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
 )
 
-type RaftNodeLog []LogEntry
+type RaftNodeLog struct {
+	*pb.RaftNodeLog
+}
 
 var (
 	nodeAddr string
@@ -16,19 +20,24 @@ var (
 	FileName string
 )
 
-func SetRaftFileName(filename string) {
-	FileName = filename
+func init() {
+	RaftLog = RaftNodeLog{
+		&pb.RaftNodeLog{
+			Entries: make([]*pb.RaftLogEntry, 0),
+		},
+	}
 }
 
 func SetRaftAddrAndPort(addr, port string) {
 	nodeAddr = addr
 	nodePort = port
+	FileName = fmt.Sprintf("%s_%s_%s", nodeAddr, nodePort, "raft_log.json")
 }
 
 // Init load
 func InitLoadRaftLogs() {
 	if FileName == "" {
-		WriteSystemLog(ERROR, fmt.Sprintln("Raft log file name not set, fail to load entries"), nodeAddr, nodePort)
+		WriteSystemLog(ERROR, fmt.Sprintln("Raft address & port not specified for logs, fail to load entries"), nodeAddr, nodePort)
 		return
 	}
 	log, err := LoadRaftLogFromFile(FileName)
@@ -36,49 +45,59 @@ func InitLoadRaftLogs() {
 		WriteSystemLog(ERROR, fmt.Sprintf("Error loading Raft log: %v", err), nodeAddr, nodePort)
 		return
 	}
-	RaftLog = log
+	RaftLog.Entries = log
 }
 
-func WriteRaftLog(level LogLevel, msg string) {
-	entry := LogEntry{
-		Timestamp: time.Now(),
-		NodeAddr:  nodeAddr,
-		NodePort:  nodePort,
-		Level:     level,
-		Message:   msg,
-		Type:      "raft",
-	}
-	RaftLog = append(RaftLog, entry)
-	LogToFile(entry, FileName)
+func WriteRaftLog(term uint64, command string) {
+    entry := &pb.RaftLogEntry{
+        Term:    term,
+        Command: command,
+    }
+
+    RaftLog.Entries = append(RaftLog.Entries, entry)
+
+    LogToFile(entry, FileName, "logs")
 }
+
 
 // To create a new copy log file
 func (log *RaftNodeLog) SaveRaftLogToFile(filename string) error {
-	logBytes, err := json.Marshal(log)
-	if err != nil {
-		return err
+	if _, err := os.Stat(LogDir); os.IsNotExist(err) {
+		err := os.Mkdir(LogDir, 0755)
+		if err != nil {
+			return fmt.Errorf("error creating log directory: %v", err)
+		}
 	}
 
-	// Full Dir Path
-	err = os.WriteFile(filename, logBytes, 0644)
+	// Fullpath with dir
+	filePath := filepath.Join(LogDir, filename)
+
+	logBytes, err := json.Marshal(log)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshaling log entry: %v", err)
+	}
+
+	err = os.WriteFile(filePath, logBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing to log file: %v", err)
 	}
 
 	return nil
 }
 
 // load log from specified file
-func LoadRaftLogFromFile(filename string) (RaftNodeLog, error) {
-	logBytes, err := os.ReadFile(filename)
+func LoadRaftLogFromFile(filename string) ([]*pb.RaftLogEntry, error) {
+	filePath := filepath.Join(LogDir, filename)
+
+	logBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, err
+		return []*pb.RaftLogEntry{}, fmt.Errorf("error reading log file: %v", err)
 	}
 
-	var log RaftNodeLog
+	var log []*pb.RaftLogEntry
 	err = json.Unmarshal(logBytes, &log)
 	if err != nil {
-		return nil, err
+		return []*pb.RaftLogEntry{}, fmt.Errorf("error unmarshaling log entry: %v", err)
 	}
 
 	return log, nil
