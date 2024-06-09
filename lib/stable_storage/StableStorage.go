@@ -17,7 +17,7 @@ type Address struct {
 type StableVars struct {
 	ElectionTerm uint64
 	VotedFor     *Address
-	Log          logger.RaftNodeLog
+	Log          *logger.RaftNodeLog
 	CommitLength uint64
 }
 
@@ -29,7 +29,7 @@ type StableStorage struct {
 
 func NewStableStorage(addr Address) *StableStorage {
 	id := fmt.Sprintf("%s_%d", addr.IP, addr.Port)
-	path := fmt.Sprintf("/persistence/%s.json", id)
+	path := fmt.Sprintf("stable/%s.json", id)
 	fmt.Println("id", id)
 	fmt.Println("path", path)
 
@@ -72,9 +72,9 @@ func (ss *StableStorage) StoreAll(data *StableVars) {
 	}
 }
 
-func (ss *StableStorage) TryLoad() *StableVars {
-	ss.Lock.Lock()
-	defer ss.Lock.Unlock()
+// func (ss *StableStorage) TryLoad() *StableVars {
+// 	ss.Lock.Lock()
+// 	defer ss.Lock.Unlock()
 
-	return ss.Load()
-}
+// 	return ss.Load()
+// }

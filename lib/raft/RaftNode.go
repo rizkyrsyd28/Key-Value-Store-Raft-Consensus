@@ -45,7 +45,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		Address:            address,
 		NodeType:           FOLLOWER,
 		log:                logger.RaftNodeLog{},
-		StableStorage:      stable_storage.NewStableStorage(stable_storage.Address{IP: address.IP, Port: int(address.Port)}),
+		StableStorage:      &stable_storage.StableStorage{},
 		ElectionTerm:       0,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
@@ -60,6 +60,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		raft.tryToApplyMembership(contactAddress)
 	}
 
+	raft.initStableStorage()
 	raft.startNode()
 
 	return raft
@@ -71,6 +72,36 @@ func (raft *RaftNode) initAsLeader() {
 	raft.ClusterAddressList.AddAddress(raft.Address)
 	raft.NodeType = LEADER
 	fmt.Println("Leader Initalize")
+}
+
+func (raft *RaftNode) initStableStorage() {
+	raft.StableStorage = stable_storage.NewStableStorage(stable_storage.Address{IP: raft.Address.IP, Port: int(raft.Address.Port)})
+	res := raft.StableStorage.Load()
+	if res != nil {
+		fmt.Println("Stable storage loaded: ", res)
+		// TODO: Execute log after stable storage loaded
+		logEntries := res.Log.Entries
+		for _, entry := range logEntries {
+			// Execute log entry
+			fmt.Println("Executing log entry: ", entry)
+		}
+		return
+	} else {
+		RaftLog := logger.RaftNodeLog{
+			RaftNodeLog: &pb.RaftNodeLog{
+				Entries: make([]*pb.RaftLogEntry, 1),
+			},
+		}
+		dummy := stable_storage.StableVars{
+			ElectionTerm: 1,
+			VotedFor:     &stable_storage.Address{IP: raft.Address.IP, Port: int(raft.Address.Port)},
+			Log:          &RaftLog,
+			CommitLength: 0,
+		}
+
+		raft.StableStorage.StoreAll(&dummy)
+	}
+
 }
 
 func (raft RaftNode) ResetElectionTimer() {
@@ -263,7 +294,7 @@ func (raft *RaftNode) sendHeartbeat() {
 			return
 		}
 
-		fmt.Println("Received response:", response)
+		fmt.Println("Received response:", response.Response)
 
 		respTerm := response.Response.Term
 		ack := response.Response.Ack
