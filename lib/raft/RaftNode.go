@@ -65,10 +65,11 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 
 	raft.initPersistentStorage()
 	if !isContact {
+		logger.InfoLogger.Println("Initalize as Leader")
 		raft.initAsLeader()
 	} else {
+		logger.InfoLogger.Println("Try to apply membership to", contactAddress.ToString(), "from", address.ToString())
 		raft.tryToApplyMembership(contactAddress)
-		fmt.Println("try")
 	}
 
 	raft.startNode()
@@ -120,7 +121,7 @@ func (raft RaftNode) ResetHeartbeatTimer() {
 }
 
 func (raft *RaftNode) startNode() {
-	fmt.Println(raft.NodeType)
+	// fmt.Println(raft.NodeType)
 	if raft.NodeType == LEADER {
 		raft.timer = time.NewTimer(raft.HeartbeatInterval)
 	} else {
@@ -175,6 +176,7 @@ func (raft *RaftNode) requestVote() {
 				})
 				if err != nil {
 					fmt.Println("Error While Send Heartbeat")
+					logger.InfoLogger.Println(err.Error())
 				} else {
 					fmt.Println("sending heartbeat...")
 					responseVote <- *res
@@ -225,11 +227,6 @@ func (raft *RaftNode) tryToApplyMembership(contact *Address) {
 		raft.ClusterAddressList.AddAddress(raft.Address)
 		fmt.Printf("Error While Apply %v\n", err.Error())
 		return
-	}
-
-	for _, data := range response.ClusterAddressList {
-		addr := Address{Address: data}
-		fmt.Println(addr.ToString())
 	}
 
 	raft.ClusterAddressList.SetAddressPb(response.ClusterAddressList)
@@ -288,9 +285,9 @@ func (raft *RaftNode) sendHeartbeat() {
 				ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
 			})
 			if err != nil {
-				fmt.Println("Error While Send Heartbeat")
+				logger.InfoLogger.Println("Error While Send Heartbeat to", addr.ToString())
 			} else {
-				fmt.Println("sending heartbeat to: ", addr)
+				logger.InfoLogger.Println("sending heartbeat to: ", addr.ToString())
 				responseChan <- HeartbeatResponseWithAddress{
 					Status:        res.Status,
 					Term:          res.Term,
@@ -605,8 +602,6 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 
 func (raft *RaftNode) AddMembership(address Address, insert bool) {
 	raft.UncommitMembership = NewMembershipApply(address, insert)
-
-	fmt.Println("Data\n", raft.UncommitMembership)
 }
 
 func (raft *RaftNode) CommitMembership(address Address, insert bool) error {
