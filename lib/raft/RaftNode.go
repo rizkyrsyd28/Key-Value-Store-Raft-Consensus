@@ -104,20 +104,8 @@ func (raft *RaftNode) initPersistentStorage() {
 		}
 		return
 	} else {
-		RaftLog := logger.RaftNodeLog{
-			RaftNodeLog: &pb.RaftNodeLog{
-				Entries: make([]*pb.RaftLogEntry, 1),
-			},
-		}
-		newInitializedPerStorage := persistent_storage.PersistValues{
-			ElectionTerm:    uint64(TERM_INITIAL),
-			VotedFor:        nil,
-			Log:             RaftLog,
-			CommittedLength: 0,
-		}
-
-		raft.PersistentStorage.StoreAll(&newInitializedPerStorage)
-		fmt.Println("Persistent storage created", newInitializedPerStorage)
+		raft.PersistentStorage.InitialStoreAll()
+		fmt.Println("Persistent storage created")
 	}
 
 }
@@ -267,6 +255,9 @@ func (raft *RaftNode) sendHeartbeat() {
 	raft.log = persistentVars.Log
 	raft.VotedFor = persistentVars.VotedFor
 	for _, contact := range contactList {
+		if contact.IsEqual(raft.Address) {
+			continue
+		}
 		wait.Add(1)
 		go func(addr Address) {
 			defer wait.Done()
@@ -445,6 +436,12 @@ func (raft *RaftNode) sendHeartbeat() {
 // }
 
 func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	persistentVars := raft.PersistentStorage.Load()
+	raft.VotedFor = persistentVars.VotedFor
+	raft.ElectionTerm = uint32(persistentVars.ElectionTerm)
+	raft.log = persistentVars.Log
+	raft.CommittedLength = persistentVars.CommittedLength
+
 	leaderAddr := req.LeaderAddress
 	reqTerm := req.Term
 	prefixLen := int(req.PrefixLength)
@@ -453,7 +450,6 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	suffix := req.Suffix
 	clusterAddrs := req.ClusterAddress
 
-	persistentVars := raft.PersistentStorage.Load()
 	if reqTerm > uint64(persistentVars.ElectionTerm) {
 		persistentVars.ElectionTerm = uint64(reqTerm)
 		persistentVars.VotedFor = nil
@@ -466,6 +462,7 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	}
 
 	log := persistentVars.Log.Entries
+	logger.DebugLogger.Println("log-entries", raft.log.Entries)
 	logger.DebugLogger.Println("log", log, "prefixLen", prefixLen, "prefixTerm", prefixTerm)
 	logOk := len(log) >= prefixLen && (prefixLen == 0 || log[prefixLen-1].Term == prefixTerm)
 
