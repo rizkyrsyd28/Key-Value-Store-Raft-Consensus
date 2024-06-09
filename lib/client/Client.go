@@ -10,7 +10,7 @@ import (
 )
 
 type GRPCClient struct {
-	address  *Address
+	Address  *Address
 	conn     *grpc.ClientConn
 	Services struct {
 		KV   pb.KeyValueServiceClient
@@ -19,13 +19,13 @@ type GRPCClient struct {
 }
 
 func NewClient(_address *Address) (*GRPCClient, error) {
-	client := &GRPCClient{address: _address}
+	client := &GRPCClient{Address: _address}
 	err := client.createConn()
 	return client, err
 }
 
 func (client *GRPCClient) createConn() (err error) {
-	client.conn, err = grpc.NewClient(client.address.ToString(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client.conn, err = grpc.NewClient(client.Address.ToString(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Error Dial %v", err)
 	}
@@ -36,6 +36,6 @@ func (client *GRPCClient) createConn() (err error) {
 
 func (client *GRPCClient) SetAddress(_address *Address) error {
 	client.conn.Close()
-	client.address = _address
+	client.Address = _address
 	return client.createConn()
 }

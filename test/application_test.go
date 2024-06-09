@@ -114,3 +114,21 @@ func TestKVAppend(t *testing.T) {
 		t.Fatalf("Error appending value")
 	}
 }
+
+func TestKVExecute(t *testing.T) {
+	kv := NewKVStore()
+	result, err := kv.Execute("SET ab yan")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if result != "OK" {
+		t.Fatalf("Error set throigh execute")
+	}
+	result, err = kv.Execute("GET ab")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if(result != "yan") {
+		t.Fatalf("Error get through execute")
+	}
+}

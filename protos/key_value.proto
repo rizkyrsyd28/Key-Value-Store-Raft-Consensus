@@ -15,7 +15,9 @@ service KeyValueService {
 }
 
 message Response {
-    string value = 1;
+    optional string value = 1;
+    optional string responseMsg = 2;
+    optional Address redirectAddress = 3;
 }
 
 message KeyRequest {

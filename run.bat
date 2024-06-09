@@ -7,6 +7,7 @@ set TEST_DIR=.\test
 
 set SERVER=server
 set CLIENT=client
+set CLIENT=.\web\main
 
 :: Generate Protobuf
 if "%1" == "protobuf" (
@@ -48,6 +49,23 @@ if "%1" == "client" (
     ) else (
         go run %CLIENT%.go %2 %3
     )
+    exit /b 0
+)
+
+:: Start Web Client
+if "%1" == "web" (
+    if "%2" == "" (
+        echo Error: Server IP Not Found, Usage: ./run.bat client ^<server ip^> ^<server port^>
+        exit /b 0
+    )
+    if "%3" == "" (
+        echo Error: Server Port Not Found, Error Usage: ./run.bat client ^<server ip^> ^<server port^>
+        exit /b 0
+    )
+    
+    echo Starting client connect to server %2:%3
+    go run .\web\main.go %2 %3
+
     exit /b 0
 )
 

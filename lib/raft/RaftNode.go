@@ -9,7 +9,8 @@ import (
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/client"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/pb"
-	"github.com/Sister20/if3230-tubes-dark-syster/lib/stable_storage"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/persistent_storage"
+	"github.com/Sister20/if3230-tubes-dark-syster/lib/util"
 
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/app"
 	"github.com/Sister20/if3230-tubes-dark-syster/lib/logger"
@@ -20,9 +21,11 @@ type RaftNode struct {
 	Address              *Address
 	NodeType             NodeType
 	log                  logger.RaftNodeLog
-	App                  app.KVStore
 	ElectionTerm         uint32
-	StableStorage        *stable_storage.StableStorage
+	App                  *app.KVStore
+	PersistentStorage    *persistent_storage.PersistentStorage
+	CommitLength         uint64
+	VotedFor             *Address
 	ClusterAddressList   ClusterNodeList
 	ClusterLeaderAddress *Address
 	ElectionTimeout      time.Duration // in seconds
@@ -41,12 +44,18 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 	}
 
 	raft := &RaftNode{
-		App:                *app,
-		Address:            address,
-		NodeType:           FOLLOWER,
-		log:                logger.RaftNodeLog{},
-		StableStorage:      &stable_storage.StableStorage{},
+		App:      app,
+		Address:  address,
+		NodeType: FOLLOWER,
+		log: logger.RaftNodeLog{
+			RaftNodeLog: &pb.RaftNodeLog{
+				Entries: make([]*pb.RaftLogEntry, 0),
+			},
+		},
+		PersistentStorage:  persistent_storage.NewPersistentStorage(address),
 		ElectionTerm:       0,
+		CommitLength:       0,
+		VotedFor:           nil,
 		ClusterAddressList: ClusterNodeList{Map: map[string]ClusterNode{}},
 		ElectionTimeout:    RandomElectionTimeout(ELECTION_TIMEOUT_MIN, ELECTION_TIMEOUT_MAX),
 		HeartbeatInterval:  time.Duration(HEARTBEAT_INTERVAL) * time.Second,
@@ -60,7 +69,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		raft.tryToApplyMembership(contactAddress)
 	}
 
-	raft.initStableStorage()
+	raft.initPersistentStorage()
 	raft.startNode()
 
 	return raft
@@ -74,16 +83,19 @@ func (raft *RaftNode) initAsLeader() {
 	fmt.Println("Leader Initalize")
 }
 
-func (raft *RaftNode) initStableStorage() {
-	raft.StableStorage = stable_storage.NewStableStorage(stable_storage.Address{IP: raft.Address.IP, Port: int(raft.Address.Port)})
-	res := raft.StableStorage.Load()
+func (raft *RaftNode) initPersistentStorage() {
+	raft.PersistentStorage = persistent_storage.NewPersistentStorage(raft.Address)
+	res := raft.PersistentStorage.Load()
 	if res != nil {
-		fmt.Println("Stable storage loaded: ", res)
-		// TODO: Execute log after stable storage loaded
+		fmt.Println("Persistent storage loaded: ", res)
+
 		logEntries := res.Log.Entries
 		for _, entry := range logEntries {
 			// Execute log entry
-			fmt.Println("Executing log entry: ", entry)
+			if entry != nil {
+				fmt.Println("Executing log entry: ", entry)
+				raft.App.Execute(entry.Command)
+			}
 		}
 		return
 	} else {
@@ -92,14 +104,15 @@ func (raft *RaftNode) initStableStorage() {
 				Entries: make([]*pb.RaftLogEntry, 1),
 			},
 		}
-		dummy := stable_storage.StableVars{
+		dummy := persistent_storage.PersistValues{
 			ElectionTerm: 1,
-			VotedFor:     &stable_storage.Address{IP: raft.Address.IP, Port: int(raft.Address.Port)},
-			Log:          &RaftLog,
+			VotedFor:     raft.Address,
+			Log:          RaftLog,
 			CommitLength: 0,
 		}
 
-		raft.StableStorage.StoreAll(&dummy)
+		raft.PersistentStorage.StoreAll(&dummy)
+		fmt.Println("Persistent storage created: ", res)
 	}
 
 }
@@ -156,8 +169,8 @@ func (raft *RaftNode) requestVote() {
 				res, err := raft.Client.Services.Raft.RequestVote(context.Background(), &pb.RequestVoteRequest{
 					VotedFor: raft.Address.Address,
 					Term:     raft.ElectionTerm,
-					// LogLength: stableStorage.length,
-					// LogTerm: stableStorage.term,
+					// LogLength: persistentStorage.length,
+					// LogTerm: persistentStorage.term,
 					// Sender: raft.Address.Address,
 				})
 				if err != nil {
@@ -238,7 +251,7 @@ func (raft *RaftNode) sendHeartbeat() {
 	// responseChan := make(chan pb.HeartbeatResponse)
 	responseChan := make(chan HeartbeatResponseWithAddress)
 	var wait sync.WaitGroup
-	stableVars := raft.StableStorage.Load()
+	persistentVars := raft.PersistentStorage.Load()
 
 	for _, contact := range contactList {
 		wait.Add(1)
@@ -249,12 +262,12 @@ func (raft *RaftNode) sendHeartbeat() {
 			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
 			prefixLen := clusterNode.SentLn
 			fmt.Println("prefLn", prefixLen)
-			fmt.Println("stabVa", stableVars)
-			suffix := stableVars.Log.Entries[prefixLen:]
+			fmt.Println("stabVa", persistentVars)
+			suffix := persistentVars.Log.Entries[prefixLen:]
 			var prefixTerm uint64
 			prefixTerm = 0
 			if prefixLen > 0 {
-				prefixTerm = stableVars.Log.Entries[prefixLen-1].Term
+				prefixTerm = persistentVars.Log.Entries[prefixLen-1].Term
 			}
 
 			res, err := raft.Client.Services.Raft.SendHeartbeat(context.Background(), &pb.HeartbeatRequest{
@@ -263,7 +276,7 @@ func (raft *RaftNode) sendHeartbeat() {
 				PrefixLength:   uint64(prefixLen),
 				PrefixTerm:     prefixTerm,
 				Suffix:         suffix,
-				CommitLength:   uint64(stableVars.CommitLength),
+				CommitLength:   uint64(persistentVars.CommitLength),
 				ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
 			})
 			if err != nil {
@@ -289,12 +302,12 @@ func (raft *RaftNode) sendHeartbeat() {
 		// TO DO: handle if the response is not as expected
 
 		if response.Response.Status != pb.STATUS_SUCCESS {
-			fmt.Println("Request not succeed:", response.Response.Status)
+			fmt.Printf("Request from %v:%v not succeed - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
 
 			return
 		}
 
-		fmt.Println("Received response:", response.Response)
+		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
 
 		respTerm := response.Response.Term
 		ack := response.Response.Ack
@@ -303,23 +316,21 @@ func (raft *RaftNode) sendHeartbeat() {
 		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
 		ackedLen := clusterNode.AckLn
 
-		if respTerm == stableVars.ElectionTerm && raft.NodeType == LEADER {
+		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
 			if successAppend && ack >= uint32(ackedLen) {
 				clusterNode.SentLn = int64(ack)
 				clusterNode.AckLn = int64(ack)
 				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
 
 				// TODO: implement commitLogEntries
-				// raft.commitLogEntries(stableVars)
+				// raft.commitLogEntries(persistentVars)
 			} else if clusterNode.SentLn > 0 {
 				clusterNode.SentLn = clusterNode.SentLn - 1
 				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
-
-				// TODO: REPLICATE LOG
 			}
-		} else if respTerm > stableVars.ElectionTerm {
-			stableVars.ElectionTerm = respTerm
-			raft.StableStorage.StoreAll(stableVars)
+		} else if respTerm > persistentVars.ElectionTerm {
+			persistentVars.ElectionTerm = respTerm
+			raft.PersistentStorage.StoreAll(persistentVars)
 			raft.NodeType = FOLLOWER
 			return
 		}
@@ -335,29 +346,29 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	suffix := req.Suffix
 	clusterAddrs := req.ClusterAddress
 
-	stableVars := raft.StableStorage.Load()
-	if reqTerm > uint64(stableVars.ElectionTerm) {
-		stableVars.ElectionTerm = uint64(reqTerm)
-		stableVars.VotedFor = nil
-		raft.StableStorage.StoreAll(stableVars)
+	persistentVars := raft.PersistentStorage.Load()
+	if reqTerm > uint64(persistentVars.ElectionTerm) {
+		persistentVars.ElectionTerm = uint64(reqTerm)
+		persistentVars.VotedFor = nil
+		raft.PersistentStorage.StoreAll(persistentVars)
 	}
 
-	if reqTerm == uint64(stableVars.ElectionTerm) {
+	if reqTerm == uint64(persistentVars.ElectionTerm) {
 		raft.NodeType = FOLLOWER
 		raft.ClusterLeaderAddress = &Address{Address: leaderAddr}
 	}
 
-	log := stableVars.Log.Entries
+	log := persistentVars.Log.Entries
 	logOk := len(log) >= prefixLen && (prefixLen == 0 || log[prefixLen-1].Term == prefixTerm)
 
 	response := &pb.HeartbeatResponse{
 		Status: pb.STATUS_SUCCESS,
-		Term:   uint64(stableVars.ElectionTerm),
+		Term:   uint64(persistentVars.ElectionTerm),
 	}
 
-	if reqTerm == uint64(stableVars.ElectionTerm) && logOk {
+	if reqTerm == uint64(persistentVars.ElectionTerm) && logOk {
 		raft.ClusterAddressList.SetAddressPb(clusterAddrs)
-		raft.appendEntries(prefixLen, leaderCommit, suffix, stableVars)
+		raft.appendEntries(prefixLen, leaderCommit, suffix, persistentVars)
 		ack := prefixLen + len(suffix)
 		response.Ack = uint32(ack)
 		response.SuccessAppend = true
@@ -369,8 +380,8 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	return response, nil
 }
 
-func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, stableVars *stable_storage.StableVars) {
-	log := stableVars.Log.Entries
+func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*pb.RaftLogEntry, persistentVars *persistent_storage.PersistValues) {
+	log := persistentVars.Log.Entries
 
 	if len(suffix) > 0 && len(log) > prefixLen {
 		idx := FindMin(len(log), prefixLen+len(suffix)) - 1
@@ -385,21 +396,66 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 		}
 	}
 
-	stableVars.Log.Entries = log
+	persistentVars.Log.Entries = log
 
-	commitLength := stableVars.CommitLength
+	commitLength := persistentVars.CommitLength
 	if uint64(leaderCommit) > commitLength {
 		for i := commitLength; i < uint64(leaderCommit); i++ {
 			raft.App.Execute(log[i].Command)
 		}
-		stableVars.CommitLength = uint64(leaderCommit)
+		persistentVars.CommitLength = uint64(leaderCommit)
 	}
 
-	raft.StableStorage.StoreAll(stableVars)
+	raft.PersistentStorage.StoreAll(persistentVars)
 }
 
-func (raft RaftNode) Execute(request interface{}) interface{} {
-	return errors.New("Method Not Implemented")
+func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response, error) {
+	if raft.NodeType != util.LEADER {
+		err := errors.New("redirected to leader address")
+		return &pb.Response{
+			RedirectAddress: raft.ClusterLeaderAddress.Address,
+		}, err
+	}
+	// Check if idempotent then give immediate result
+	typeCommand := app.GetCommandType(command)
+	if typeCommand == "" {
+		errorMessage := "Invalid Command"
+		return &pb.Response{
+			ResponseMsg: &errorMessage,
+		}, nil
+
+	}
+	if app.IsCommandIdempotent(typeCommand) {
+		value, err := raft.App.Execute(command)
+		if err != nil {
+			errorMessage := err.Error()
+			return &pb.Response{
+				ResponseMsg: &errorMessage,
+			}, nil
+		}
+		return &pb.Response{
+			Value: &value,
+		}, nil
+	}
+	// Append to newLogEntry only, no execute on app
+	newLogEntry := &pb.RaftLogEntry{
+		Term:    uint64(raft.ElectionTerm),
+		Command: command,
+	}
+	raft.log.Entries = append(raft.log.Entries, newLogEntry)
+	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
+		ElectionTerm: uint64(raft.ElectionTerm),
+		VotedFor:     raft.VotedFor,
+		Log:          raft.log,
+		CommitLength: raft.CommitLength,
+	})
+	clusterNode := raft.ClusterAddressList.Get(raft.Address.ToString())
+	clusterNode.AckLn = int64(len(raft.log.Entries))
+	raft.ClusterAddressList.PatchAddress(raft.Address, clusterNode)
+	responseMessageOnProcess := "Process On Progress"
+	return &pb.Response{
+		ResponseMsg: &responseMessageOnProcess,
+	}, nil
 }
 
 func (raft *RaftNode) AddMembership(address Address, insert bool) {
