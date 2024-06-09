@@ -18,6 +18,7 @@ message Response {
     optional string value = 1;
     optional string responseMsg = 2;
     optional Address redirectAddress = 3;
+    optional STATUS status = 4;
 }
 
 message KeyRequest {
