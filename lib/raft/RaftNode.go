@@ -62,6 +62,7 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		Client:             _client,
 		UncommitMembership: nil,
 	}
+	raft.initPersistentStorage()
 
 	if !isContact {
 		raft.initAsLeader()
@@ -69,7 +70,6 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		raft.tryToApplyMembership(contactAddress)
 	}
 
-	raft.initPersistentStorage()
 	raft.startNode()
 
 	return raft
