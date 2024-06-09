@@ -71,7 +71,7 @@ func (ss *PersistentStorage) StoreAll(data *PersistValues) {
 }
 
 func (ss *PersistentStorage) InitialStoreAll() error {
-	initialData := `{"ElectionTerm":0,"VotedFor":null,"Log":{"entries":[]},"CommittedLength":0}`
+	initialData := `{"ElectionTerm":1,"VotedFor":null,"Log":{"entries":[]},"CommittedLength":0}`
 
 	err := os.WriteFile(ss.Path, []byte(initialData), 0644)
 	if err != nil {
