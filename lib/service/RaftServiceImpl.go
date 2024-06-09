@@ -129,7 +129,7 @@ func (rs *RaftServiceImpl) ApplyMembership(ctx context.Context, request *pb.Appl
 func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestVoteRequest) (*pb.RequestVoteResponse, error) {
 
 	// TODO: add voted for check in condition
-	if (rs.node.ElectionTerm == request.Term && rs.node.NodeType == FOLLOWER) {
+	if rs.node.ElectionTerm == request.Term && rs.node.NodeType == FOLLOWER {
 		return &pb.RequestVoteResponse{
 			NodeAddress: rs.node.Address.Address,
 			CurrentTerm: 1,
@@ -147,12 +147,19 @@ func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestV
 func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	rs.node.ResetElectionTimer()
 	rs.node.ClusterLeaderAddress = &Address{Address: request.Sender}
-	response := pb.HeartbeatResponse{
-		Ack:           35,
-		Term:          1,
-		SuccessAppend: true,
+	response, err := rs.node.Heartbeat(ctx, request)
+
+	if err != nil {
+		return nil, err
 	}
-	return &response, nil
+
+	// response := pb.HeartbeatResponse{
+	// 	Ack:           35,
+	// 	Term:          1,
+	// 	SuccessAppend: true,
+	// }
+
+	return response, nil
 }
 
 func (rs *RaftServiceImpl) AddUpdateCluster(ctx context.Context, request *pb.AddUpdateClusterRequest) (*pb.AddUpdateClusterResponse, error) {

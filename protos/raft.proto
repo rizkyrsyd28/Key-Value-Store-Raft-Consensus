@@ -86,13 +86,13 @@ message RequestVoteResponse {
 }
 
 message HeartbeatRequest {
-    Address             leaderAddress   = 1;
-    uint64              term            = 2;
-    uint64              prefixLength    = 3;
-    uint64              prefixTerm      = 4;
-    uint64              commitLength    = 5;
-    repeated string     suffix          = 6;
-    repeated Address    clusterAddress  = 7;
+    Address                     leaderAddress   = 1;
+    uint64                      term            = 2;
+    uint64                      prefixLength    = 3;
+    uint64                      prefixTerm      = 4;
+    uint64                      commitLength    = 5;
+    repeated RaftLogEntry       suffix          = 6;
+    repeated Address            clusterAddress  = 7;
 
     // Base Request
     optional Address sender = 8;
