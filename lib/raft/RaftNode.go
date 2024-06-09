@@ -262,6 +262,10 @@ func (raft *RaftNode) sendHeartbeat() {
 	responseChan := make(chan HeartbeatResponseWithAddress)
 	var wait sync.WaitGroup
 	persistentVars := raft.PersistentStorage.Load()
+	raft.ElectionTerm = uint32(persistentVars.ElectionTerm)
+	raft.CommittedLength = persistentVars.CommittedLength
+	raft.log = persistentVars.Log
+	raft.VotedFor = persistentVars.VotedFor
 	for _, contact := range contactList {
 		wait.Add(1)
 		go func(addr Address) {
@@ -311,11 +315,16 @@ func (raft *RaftNode) sendHeartbeat() {
 			return
 		}
 		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Status)
+		logger.DebugLogger.Println("response", response)
 		respTerm := response.Term
 		ack := response.Ack
 		successAppend := response.SuccessAppend
 		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
 		ackedLen := clusterNode.AckLn
+		logger.DebugLogger.Println("ack", ack, "ackedLen", ackedLen, "persvar", persistentVars)
+		logger.DebugLogger.Println("suc apend", successAppend)
+		logger.DebugLogger.Println("respTerm", respTerm, "persistentVars.ElectionTerm", persistentVars.ElectionTerm)
+		logger.DebugLogger.Println("raft.NodeType", raft.NodeType)
 		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
 			if successAppend && ack >= uint32(ackedLen) {
 				clusterNode.SentLn = int64(ack)
@@ -329,6 +338,7 @@ func (raft *RaftNode) sendHeartbeat() {
 			}
 		} else if respTerm > persistentVars.ElectionTerm {
 			persistentVars.ElectionTerm = respTerm
+			raft.ElectionTerm = uint32(respTerm)
 			raft.PersistentStorage.StoreAll(persistentVars)
 			raft.NodeType = FOLLOWER
 			return
@@ -464,6 +474,8 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 		Term:   uint64(persistentVars.ElectionTerm),
 	}
 
+
+	logger.DebugLogger.Println("reqTerm", reqTerm, "persistentVars.ElectionTerm", persistentVars.ElectionTerm, "logOk", logOk)
 	if reqTerm == uint64(persistentVars.ElectionTerm) && logOk {
 		raft.ClusterAddressList.SetAddressPb(clusterAddrs)
 		raft.appendEntries(prefixLen, leaderCommit, suffix, persistentVars)
