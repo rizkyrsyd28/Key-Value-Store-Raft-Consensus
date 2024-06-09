@@ -154,6 +154,11 @@ func (raft *RaftNode) requestVote() {
 	contactList := raft.ClusterAddressList.GetAllAddress()
 
 	// TODO: update election term on stable storage
+	persistentVars := raft.PersistentStorage.Load()
+	persistentVars.ElectionTerm += 1
+	persistentVars.VotedFor = raft.Address
+
+	raft.PersistentStorage.StoreAll(persistentVars)
 
 	responseVote := make(chan pb.RequestVoteResponse)
 	votedCount := 1
@@ -242,34 +247,32 @@ func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Ad
 
 func (raft *RaftNode) sendHeartbeat() {
 	type HeartbeatResponseWithAddress struct {
-		Response pb.HeartbeatResponse
-		Address  Address
+		Status        pb.STATUS
+		Term          uint64
+		Ack           uint32
+		SuccessAppend bool
+		Address       Address
 	}
-
 	contactList := raft.ClusterAddressList.GetAllAddress()
-
-	// responseChan := make(chan pb.HeartbeatResponse)
 	responseChan := make(chan HeartbeatResponseWithAddress)
 	var wait sync.WaitGroup
 	persistentVars := raft.PersistentStorage.Load()
-
 	for _, contact := range contactList {
 		wait.Add(1)
-		go func(address Address) {
+		go func(addr Address) {
 			defer wait.Done()
-			raft.Client.SetAddress(&contact)
-
-			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
+			raft.Client.SetAddress(&addr)
+			clusterNode := raft.ClusterAddressList.Get(addr.ToString())
 			prefixLen := clusterNode.SentLn
 			fmt.Println("prefLn", prefixLen)
 			fmt.Println("stabVa", persistentVars)
+			fmt.Println("contact list: ", contactList)
 			suffix := persistentVars.Log.Entries[prefixLen:]
 			var prefixTerm uint64
 			prefixTerm = 0
 			if prefixLen > 0 {
 				prefixTerm = persistentVars.Log.Entries[prefixLen-1].Term
 			}
-
 			res, err := raft.Client.Services.Raft.SendHeartbeat(context.Background(), &pb.HeartbeatRequest{
 				Sender:         raft.Address.Address,
 				Term:           uint64(raft.ElectionTerm),
@@ -282,13 +285,14 @@ func (raft *RaftNode) sendHeartbeat() {
 			if err != nil {
 				fmt.Println("Error While Send Heartbeat")
 			} else {
-				fmt.Println("sending heartbeat...")
-				// responseChan <- *res
+				fmt.Println("sending heartbeat to: ", addr)
 				responseChan <- HeartbeatResponseWithAddress{
-					Response: *res,
-					Address:  contact,
+					Status:        res.Status,
+					Term:          res.Term,
+					Ack:           res.Ack,
+					SuccessAppend: res.SuccessAppend,
+					Address:       addr,
 				}
-
 			}
 		}(contact)
 	}
@@ -300,28 +304,21 @@ func (raft *RaftNode) sendHeartbeat() {
 	// Now you can range over the responseChan to receive responses
 	for response := range responseChan {
 		// TO DO: handle if the response is not as expected
-
-		if response.Response.Status != pb.STATUS_SUCCESS {
-			fmt.Printf("Request from %v:%v not succeed - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
-
+		if response.Status != pb.STATUS_SUCCESS {
+			fmt.Printf("Request from %v:%v not succeed - %v\n", response.Address.IP, response.Address.Port, response.Status)
 			return
 		}
-
-		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
-
-		respTerm := response.Response.Term
-		ack := response.Response.Ack
-		successAppend := response.Response.SuccessAppend
-
+		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Status)
+		respTerm := response.Term
+		ack := response.Ack
+		successAppend := response.SuccessAppend
 		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
 		ackedLen := clusterNode.AckLn
-
 		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
 			if successAppend && ack >= uint32(ackedLen) {
 				clusterNode.SentLn = int64(ack)
 				clusterNode.AckLn = int64(ack)
 				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
-
 				// TODO: implement commitLogEntries
 				// raft.commitLogEntries(persistentVars)
 			} else if clusterNode.SentLn > 0 {
@@ -336,6 +333,104 @@ func (raft *RaftNode) sendHeartbeat() {
 		}
 	}
 }
+
+// func (raft *RaftNode) sendHeartbeat() {
+// 	type HeartbeatResponseWithAddress struct {
+// 		Response pb.HeartbeatResponse
+// 		Address  Address
+// 	}
+
+// 	contactList := raft.ClusterAddressList.GetAllAddress()
+
+// 	// responseChan := make(chan pb.HeartbeatResponse)
+// 	responseChan := make(chan HeartbeatResponseWithAddress)
+// 	var wait sync.WaitGroup
+// 	persistentVars := raft.PersistentStorage.Load()
+
+// 	for _, contact := range contactList {
+// 		wait.Add(1)
+// 		go func(address Address) {
+// 			defer wait.Done()
+// 			raft.Client.SetAddress(&contact)
+
+// 			clusterNode := raft.ClusterAddressList.Get(contact.ToString())
+// 			prefixLen := clusterNode.SentLn
+// 			fmt.Println("prefLn", prefixLen)
+// 			fmt.Println("stabVa", persistentVars)
+// 			fmt.Println("contact list: ", contactList)
+// 			suffix := persistentVars.Log.Entries[prefixLen:]
+// 			var prefixTerm uint64
+// 			prefixTerm = 0
+// 			if prefixLen > 0 {
+// 				prefixTerm = persistentVars.Log.Entries[prefixLen-1].Term
+// 			}
+
+// 			res, err := raft.Client.Services.Raft.SendHeartbeat(context.Background(), &pb.HeartbeatRequest{
+// 				Sender:         raft.Address.Address,
+// 				Term:           uint64(raft.ElectionTerm),
+// 				PrefixLength:   uint64(prefixLen),
+// 				PrefixTerm:     prefixTerm,
+// 				Suffix:         suffix,
+// 				CommitLength:   uint64(persistentVars.CommitLength),
+// 				ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
+// 			})
+// 			if err != nil {
+// 				fmt.Println("Error While Send Heartbeat")
+// 			} else {
+// 				fmt.Println("sending heartbeat to: ", contact)
+// 				// responseChan <- *res
+// 				responseChan <- HeartbeatResponseWithAddress{
+// 					Response: *res,
+// 					Address:  contact,
+// 				}
+
+// 			}
+// 		}(contact)
+// 	}
+// 	// Close the channel after all goroutines finish sending responses
+// 	go func() {
+// 		wait.Wait()
+// 		close(responseChan)
+// 	}()
+// 	// Now you can range over the responseChan to receive responses
+// 	for response := range responseChan {
+// 		// TO DO: handle if the response is not as expected
+
+// 		if response.Response.Status != pb.STATUS_SUCCESS {
+// 			fmt.Printf("Request from %v:%v not succeed - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
+
+// 			return
+// 		}
+
+// 		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Response.Status)
+
+// 		respTerm := response.Response.Term
+// 		ack := response.Response.Ack
+// 		successAppend := response.Response.SuccessAppend
+
+// 		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
+// 		ackedLen := clusterNode.AckLn
+
+// 		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
+// 			if successAppend && ack >= uint32(ackedLen) {
+// 				clusterNode.SentLn = int64(ack)
+// 				clusterNode.AckLn = int64(ack)
+// 				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
+
+// 				// TODO: implement commitLogEntries
+// 				// raft.commitLogEntries(persistentVars)
+// 			} else if clusterNode.SentLn > 0 {
+// 				clusterNode.SentLn = clusterNode.SentLn - 1
+// 				raft.ClusterAddressList.PatchAddress(&response.Address, clusterNode)
+// 			}
+// 		} else if respTerm > persistentVars.ElectionTerm {
+// 			persistentVars.ElectionTerm = respTerm
+// 			raft.PersistentStorage.StoreAll(persistentVars)
+// 			raft.NodeType = FOLLOWER
+// 			return
+// 		}
+// 	}
+// }
 
 func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	leaderAddr := req.LeaderAddress
