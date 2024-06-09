@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Dark Syster</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script type="js" src=".\main.js" defer></script>
+    </head>
+    <body class="flex flex-col mx-10 h-[100vh] justify-between">
+        <div>
+            <h1 class="text-3xl my-10">Dark Syster</h1>
+            <div class="flex flex-col gap-y-8 text-xl">
+                <div>
+                    <div class="flex flex-row gap-x-7">
+                        <h2>Ping</h2>
+                        <button id="btn-ping" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <div id="res-ping"></div>
+                    </div>
+                </div>
+                <div>
+                    <h2>Getter</h2>
+                    <div class="flex flex-row gap-x-7">
+                        <input id="get-key" type="text" class="border border-stale-700" placeholder="Key" />
+                        <button id="btn-get" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <h2 id="res-get"></h2>
+                    </div>
+                </div>
+                <div>
+                    <h2>Setter<aa/h2>
+                    <div class="flex flex-row gap-x-7">
+                        <input id="set-key" type="text" class="border border-stale-700" placeholder="Key" />
+                        <input id="set-val" type="text" class="border border-stale-700" placeholder="Value" />
+                        <button id="btn-set" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <h2 id="res-set"></h2>
+                    </div>
+                </div>
+                <div>
+                    <h2>String Length</h2>
+                    <div class="flex flex-row gap-x-7">
+                        <input id="strln-key" type="text" class="border border-stale-700" placeholder="Key" />
+                        <button id="btn-strln" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <h2 id="res-strln"></h2>
+                    </div>
+                </div>
+                <div>
+                    <h2>Delete</h2>
+                    <div class="flex flex-row gap-x-7">
+                        <input id="del-key" type="text" class="border border-stale-700" placeholder="Key" />
+                        <button id="btn-del" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <h2 id="res-del"></h2>
+                    </div>
+                </div>
+                <div>
+                    <h2>Append<aa/h2>
+                    <div class="flex flex-row gap-x-7">
+                        <input id="append-key" type="text" class="border border-stale-700" placeholder="Key" />
+                        <input id="append-val" type="text" class="border border-stale-700" placeholder="Value" />
+                        <button id="btn-append" class="bg-slate-700 px-3 text-white border rounded-md">Send</button>
+                        <h2 id="res-append"></h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mb-10">
+            <div class="text-xl">
+                <h2>Network<aa/h2>
+                <div class="flex flex-row gap-x-7">
+                    <input id="ip" type="text" class="border border-stale-700" placeholder="IP" />
+                    <input id="port" type="text" class="border border-stale-700" placeholder="Port" />
+                    <button id="btn-address" class="bg-slate-700 px-3 text-white border rounded-md">Change</button>
+                    <h2 id="res-addrress"></h2>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Network
+            const ipInput = document.querySelector("#ip");
+            const portInput = document.querySelector("#port");
+            const btnAddress = document.querySelector("#btn-address");
+            const resAddress = document.querySelector("#res-address");
+
+            // Ping
+            const btnPing = document.querySelector("#btn-ping");
+            const resPing = document.querySelector("#res-ping");
+            
+            // Gat
+            const getKeyInput = document.querySelector("#get-key");
+            const btnGet = document.querySelector("#btn-get");
+            const resGet = document.querySelector("#res-get");
+
+            // Set
+            const setKeyInput = document.querySelector("#set-key");
+            const setValInput = document.querySelector("#set-val");
+            const btnSet = document.querySelector("#btn-set");
+            const resSet = document.querySelector("#res-set");
+
+            // StrLn
+            const strlnKeyInput = document.querySelector("#strln-key");
+            const btnStrln = document.querySelector("#btn-strln");
+            const resStrln = document.querySelector("#res-strln");
+
+            // Append
+            const appendKeyInput = document.querySelector("#append-key");
+            const appendValInput = document.querySelector("#append-val");
+            const btnAppend = document.querySelector("#btn-append");
+            const resAppend = document.querySelector("#res-append");
+
+            // Del
+            const delKeyInput = document.querySelector("#del-key");
+            const btnDel = document.querySelector("#btn-del");
+            const resDel = document.querySelector("#res-del");
+
+            btnPing && 
+                btnPing.addEventListener("click", (e) => {
+                    e.preventDefault()
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/ping`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send()
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+                            
+                            if (this.status == 200 && data.message.length < 1) {
+                                resPing.innerHTML = `[${this.status}] ${data.message}`
+                                resPing.classList.add("bg-green-500")
+                                resPing.classList.add("text-white")
+                            } else {
+                                resPing.innerHTML = `[${this.status}] Internal Server Error`
+                                resPing.classList.add("bg-red-500")
+                                resPing.classList.add("text-white")
+                            }
+                        }
+                    };
+                })
+
+            btnGet &&
+                btnGet.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const key = getKeyInput.value;
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/get`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ key }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200 && data.message.length < 1) {
+                                resGet.innerHTML = `[${this.status}] ${data.message}`
+                                resGet.classList.add("bg-green-500")
+                                resGet.classList.add("text-white")
+                            } else {
+                                resGet.innerHTML = `[${this.status}] ${data.error}`
+                                resGet.classList.add("bg-red-500")
+                                resGet.classList.add("text-white")
+                            }
+                        }
+                    };
+                });
+
+            btnSet &&
+                btnSet.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const key = setKeyInput.value;
+                    const value = setValInput.value;
+                    console.log(key, " : ", value);
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/set`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ key, value }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200 && data.message.length < 1) {
+                                resSet.innerHTML = `[${this.status}] ${data.message}`
+                                resSet.classList.add("bg-green-500")
+                                resSet.classList.add("text-white")
+                            } else {
+                                resSet.innerHTML = `[${this.status}] ${data.error}`
+                                resSet.classList.add("bg-red-500")
+                                resSet.classList.add("text-white")
+                            }                        
+                        }
+                    };
+                });
+            
+            btnStrln &&
+                btnStrln.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const key = strlnKeyInput.value;
+                    console.log(key);
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/strln`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ key }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200 && data.message.length < 1) {
+                                resStrln.innerHTML = `[${this.status}] ${data.message}`
+                                resStrln.classList.add("bg-green-500")
+                                resStrln.classList.add("text-white")
+                            } else {
+                                resStrln.innerHTML = `[${this.status}] ${data.error}`
+                                resStrln.classList.add("bg-red-500")
+                                resStrln.classList.add("text-white")
+                            }
+                        }
+                    };
+                });
+
+            btnDel &&
+                btnDel.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const key = delKeyInput.value;
+                    console.log(key);
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/del`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ key }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200 && data.message.length < 1) {
+                                resDel.innerHTML = `[${this.status}] ${data.message}`
+                                resDel.classList.add("bg-green-500")
+                                resDel.classList.add("text-white")
+                            } else {
+                                resDel.innerHTML = `[${this.status}] ${data.error}`
+                                resDel.classList.add("bg-red-500")
+                                resDel.classList.add("text-white")
+                            }
+                        }
+                    };
+                });
+
+            btnAppend &&
+                btnAppend.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const key = appendKeyInput.value;
+                    const value = appendValInput.value;
+                    console.log(key);
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", `/append`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ key, value }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200 && data.message.length < 1) {
+                                resAppend.innerHTML = `[${this.status}] ${data.message}`
+                                resAppend.classList.add("bg-green-500")
+                                resAppend.classList.add("text-white")
+                            } else {
+                                resAppend.innerHTML = `[${this.status}] ${data.error}`
+                                resAppend.classList.add("bg-red-500")
+                                resAppend.classList.add("text-white")
+                            }
+                        }
+                    };
+                });
+
+            btnAddress &&
+                btnAddress.addEventListener("click", (e) => {
+                    e.preventDefault();
+
+                    const ip = ipInput.value;
+                    const port = portInput.value;
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("PUT", `/network`);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.send(JSON.stringify({ ip, port }));
+
+                    xhr.onreadystatechange = async function () {
+                        if (this.readyState === XMLHttpRequest.DONE) {
+                            data = JSON.parse(this.responseText);
+
+                            if (this.status == 200  && data.message.length < 1) {
+                                resAddress.innerHTML = `[${this.status}] ${data.message}`
+                                resAddress.classList.add("bg-green-500")
+                                resAddress.classList.add("text-white")
+                            } else {
+                                resAddress.innerHTML = `[${this.status}] ${data.error}`
+                                resAddress.classList.add("bg-red-500")
+                                resAddress.classList.add("text-white")
+                            }
+                        }
+                    };
+                });
+        </script>
+    </body>
+</html>
