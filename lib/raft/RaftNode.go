@@ -153,6 +153,7 @@ func (raft *RaftNode) requestVote() {
 	persistentVars.ElectionTerm += 1
 	persistentVars.VotedFor = raft.Address
 
+	logger.DebugLogger.Println("Now persvar: ", persistentVars)
 	raft.PersistentStorage.StoreAll(persistentVars)
 
 	responseVote := make(chan pb.RequestVoteResponse)
