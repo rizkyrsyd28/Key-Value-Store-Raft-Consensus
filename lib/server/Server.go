@@ -69,7 +69,7 @@ func UnaryInterceptor(
 	resp, err := handler(ctx, req)
 
 	// Log response and elapsed time
-	log.Printf("Method: %s, Response: %+v, ElapsedTime: %s, Error: %v", info.FullMethod, resp, time.Since(start), err)
+	log.Printf("Method: %s, Response: %+v, ElapsedTime: %s, Error: %v\n\n", info.FullMethod, resp, time.Since(start), err)
 
 	return resp, err
 }

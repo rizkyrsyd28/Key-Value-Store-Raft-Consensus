@@ -62,11 +62,13 @@ func NewRaftNode(app *app.KVStore, address *Address, isContact bool, contactAddr
 		Client:             _client,
 		UncommitMembership: nil,
 	}
-	raft.initPersistentStorage()
 
+	raft.initPersistentStorage()
 	if !isContact {
+		logger.InfoLogger.Println("Initalize as Leader")
 		raft.initAsLeader()
 	} else {
+		logger.InfoLogger.Println("Try to apply membership to", contactAddress.ToString(), "from", address.ToString())
 		raft.tryToApplyMembership(contactAddress)
 	}
 
@@ -119,7 +121,7 @@ func (raft RaftNode) ResetHeartbeatTimer() {
 }
 
 func (raft *RaftNode) startNode() {
-	fmt.Println(raft.NodeType)
+	// fmt.Println(raft.NodeType)
 	if raft.NodeType == LEADER {
 		raft.timer = time.NewTimer(raft.HeartbeatInterval)
 	} else {
@@ -151,6 +153,7 @@ func (raft *RaftNode) requestVote() {
 	persistentVars.ElectionTerm += 1
 	persistentVars.VotedFor = raft.Address
 
+	logger.DebugLogger.Println("Now persvar: ", persistentVars)
 	raft.PersistentStorage.StoreAll(persistentVars)
 
 	responseVote := make(chan pb.RequestVoteResponse)
@@ -159,6 +162,7 @@ func (raft *RaftNode) requestVote() {
 	fmt.Println("Requesting Vote")
 	var wait sync.WaitGroup
 	for _, contact := range contactList {
+		contact := contact
 		wait.Add(1)
 		go func(address Address) {
 			defer wait.Done() // send request vote to other nodes
@@ -173,6 +177,7 @@ func (raft *RaftNode) requestVote() {
 				})
 				if err != nil {
 					fmt.Println("Error While Send Heartbeat")
+					logger.InfoLogger.Println(err.Error())
 				} else {
 					fmt.Println("sending heartbeat...")
 					responseVote <- *res
@@ -207,7 +212,7 @@ func (raft *RaftNode) requestVote() {
 	}
 }
 
-func (raft RaftNode) tryToApplyMembership(contact *Address) {
+func (raft *RaftNode) tryToApplyMembership(contact *Address) {
 	if err := raft.Client.SetAddress(contact); err != nil {
 		fmt.Println("Error client while change address")
 		return
@@ -225,17 +230,16 @@ func (raft RaftNode) tryToApplyMembership(contact *Address) {
 		return
 	}
 
-	for _, data := range response.ClusterAddressList {
-		addr := Address{Address: data}
-		fmt.Println(addr.ToString())
-	}
-
 	raft.ClusterAddressList.SetAddressPb(response.ClusterAddressList)
-	raft.ClusterLeaderAddress = contact
-	raft.log.RaftNodeLog = response.Log
-	stableValues := raft.PersistentStorage.Load()
-	stableValues.Log = raft.log
-	raft.PersistentStorage.StoreAll(stableValues)
+	fmt.Println(contact.ToString())
+	raft.ClusterLeaderAddress = NewAddress(contact.IP, fmt.Sprint(contact.Port))
+	fmt.Println(raft.ClusterLeaderAddress.ToString())
+	if response.Log != nil && len(response.Log.Entries) > 0 {
+		raft.log.RaftNodeLog = response.Log
+		stableValues := raft.PersistentStorage.Load()
+		stableValues.Log = raft.log
+		raft.PersistentStorage.StoreAll(stableValues)
+	}
 }
 
 func (raft RaftNode) sendRequest(request interface{}, rpcName string, address Address) {
@@ -284,9 +288,9 @@ func (raft *RaftNode) sendHeartbeat() {
 				ClusterAddress: raft.ClusterAddressList.GetAllPbAddress(),
 			})
 			if err != nil {
-				fmt.Println("Error While Send Heartbeat")
+				logger.InfoLogger.Println("Error While Send Heartbeat to", addr.ToString())
 			} else {
-				fmt.Println("sending heartbeat to: ", addr)
+				logger.InfoLogger.Println("sending heartbeat to: ", addr.ToString())
 				responseChan <- HeartbeatResponseWithAddress{
 					Status:        res.Status,
 					Term:          res.Term,
@@ -309,16 +313,11 @@ func (raft *RaftNode) sendHeartbeat() {
 			return
 		}
 		fmt.Printf("Received response from %v:%v - %v\n", response.Address.IP, response.Address.Port, response.Status)
-		logger.DebugLogger.Println("response", response)
 		respTerm := response.Term
 		ack := response.Ack
 		successAppend := response.SuccessAppend
 		clusterNode := raft.ClusterAddressList.Get(response.Address.ToString())
 		ackedLen := clusterNode.AckLn
-		logger.DebugLogger.Println("ack", ack, "ackedLen", ackedLen, "persvar", persistentVars)
-		logger.DebugLogger.Println("suc apend", successAppend)
-		logger.DebugLogger.Println("respTerm", respTerm, "persistentVars.ElectionTerm", persistentVars.ElectionTerm)
-		logger.DebugLogger.Println("raft.NodeType", raft.NodeType)
 		if respTerm == persistentVars.ElectionTerm && raft.NodeType == LEADER {
 			if successAppend && ack >= uint32(ackedLen) {
 				clusterNode.SentLn = int64(ack)
@@ -445,7 +444,7 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 	raft.log = persistentVars.Log
 	raft.CommittedLength = persistentVars.CommittedLength
 
-	leaderAddr := req.LeaderAddress
+	// leaderAddr := req.LeaderAddress
 	reqTerm := req.Term
 	prefixLen := int(req.PrefixLength)
 	prefixTerm := req.PrefixTerm
@@ -461,12 +460,12 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 
 	if reqTerm == uint64(persistentVars.ElectionTerm) {
 		raft.NodeType = FOLLOWER
-		raft.ClusterLeaderAddress = &Address{Address: leaderAddr}
+		// raft.ClusterLeaderAddress = &Address{Address: leaderAddr}
+		raft.ClusterLeaderAddress = &Address{Address: &pb.Address{IP: req.Sender.IP, Port: req.Sender.Port}}
+		// raft.ClusterLeaderAddress = NewAddress(req.LeaderAddress.IP, fmt.Sprint(req.LeaderAddress.Port))
 	}
 
 	log := persistentVars.Log.Entries
-	logger.DebugLogger.Println("log-entries", raft.log.Entries)
-	logger.DebugLogger.Println("log", log, "prefixLen", prefixLen, "prefixTerm", prefixTerm)
 	logOk := len(log) >= prefixLen && (prefixLen == 0 || log[prefixLen-1].Term == prefixTerm)
 
 	response := &pb.HeartbeatResponse{
@@ -474,7 +473,6 @@ func (raft *RaftNode) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (
 		Term:   uint64(persistentVars.ElectionTerm),
 	}
 
-	logger.DebugLogger.Println("reqTerm", reqTerm, "persistentVars.ElectionTerm", persistentVars.ElectionTerm, "logOk", logOk)
 	if reqTerm == uint64(persistentVars.ElectionTerm) && logOk {
 		raft.ClusterAddressList.SetAddressPb(clusterAddrs)
 		raft.appendEntries(prefixLen, leaderCommit, suffix, persistentVars)
@@ -497,7 +495,6 @@ func (raft *RaftNode) appendEntries(prefixLen int, leaderCommit int, suffix []*p
 
 	if len(suffix) > 0 && len(log) > prefixLen {
 		idx := FindMin(len(log), prefixLen+len(suffix)) - 1
-		logger.DebugLogger.Println("idx", idx, "(log)", (log), "prefixLen", prefixLen, "(suffix)", suffix)
 		if log[idx].Term != suffix[idx-prefixLen].Term {
 			log = log[:prefixLen]
 		}
@@ -587,15 +584,11 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 	}
 	// Append to newLogEntry only, no execute on app
 
-	logger.DebugLogger.Println("term in uint", uint64(raft.ElectionTerm))
 	newLogEntry := &pb.RaftLogEntry{
 		Term:    uint64(raft.ElectionTerm),
 		Command: command,
 	}
-	logger.DebugLogger.Println("newLogEntry", newLogEntry)
 	raft.log.Entries = append(raft.log.Entries, newLogEntry)
-	logger.DebugLogger.Println("curernt term", raft.ElectionTerm)
-	logger.DebugLogger.Println("raft.log.Entries", raft.log.Entries)
 	raft.PersistentStorage.StoreAll(&persistent_storage.PersistValues{
 		ElectionTerm:    uint64(raft.ElectionTerm),
 		VotedFor:        raft.VotedFor,
@@ -614,8 +607,6 @@ func (raft *RaftNode) Execute(ctx context.Context, command string) (*pb.Response
 
 func (raft *RaftNode) AddMembership(address Address, insert bool) {
 	raft.UncommitMembership = NewMembershipApply(address, insert)
-
-	fmt.Println("Data\n", raft.UncommitMembership)
 }
 
 func (raft *RaftNode) CommitMembership(address Address, insert bool) error {

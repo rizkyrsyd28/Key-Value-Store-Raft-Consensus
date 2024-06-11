@@ -65,37 +65,12 @@ func main() {
 
 			ctx := context.Background()
 
-			// response := &pb.Response{
-			// 	RedirectAddress: address.Address,
-			// 	Status:          pb.STATUS_REDIRECTED.Enum(),
-			// }
-
-			// fmt.Println(response.Status.String() == pb.STATUS_REDIRECTED.String())
-			// for response.Status.String() == pb.STATUS_REDIRECTED.String() {
-			// 	// fmt.Println("REDIRECT")
-			// 	response, err = client.Services.KV.Ping(ctx, &pb.Empty{})
-			// 	if err != nil {
-			// 		log.Fatalf("Response Error %v", err)
-			// 	}
-			// }
-
-			// fmt.Printf("%s\n", response.GetValue())
-
-			// function := func() {
-			// 	response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
-			// 	if err != nil {
-			// 		log.Fatalf("Response Error %v", err)
-			// 	}
-
-			// 	fmt.Printf("%s\n", response.GetValue())
-			// }
-
 			function := func() {
 				handler := func(address Address) *pb.Response {
 					client.SetAddress(&address)
 					response, err := client.Services.KV.Ping(ctx, &pb.Empty{})
 					if err != nil {
-						log.Fatalf("Response Error %v", err)
+						fmt.Println("Response Error %v", err)
 					}
 					return response
 				}
@@ -117,11 +92,24 @@ func main() {
 
 			ctx := context.Background()
 
+			// function := func() {
+			// 	response, err := client.Services.KV.Get(ctx, &pb.KeyRequest{Key: command[1]})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
+			// 	fmt.Printf("\"%s\"\n", response.GetValue())
+			// }
+
 			function := func() {
-				response, err := client.Services.KV.Get(ctx, &pb.KeyRequest{Key: command[1]})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.Get(ctx, &pb.KeyRequest{Key: command[1]})
+					if err != nil {
+						fmt.Println("Response Error %v", err)
+					}
+					return response
 				}
+				response := RedirectHanlder(address, handler)
 				fmt.Printf("\"%s\"\n", response.GetValue())
 			}
 
@@ -139,12 +127,24 @@ func main() {
 
 			ctx := context.Background()
 
+			// function := func() {
+			// 	response, err := client.Services.KV.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
+			// 	fmt.Printf("\"%s\"\n", response.GetValue())
+			// }
 			function := func() {
-				response, err := client.Services.KV.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.Set(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+					if err != nil {
+						fmt.Println("Response Error %v", err)
+					}
+					return response
 				}
-				fmt.Printf("\"%s\"\n", response.GetValue())
+				RedirectHanlder(address, handler)
+				fmt.Printf("OK\n")
 			}
 
 			if enableTime {
@@ -161,11 +161,24 @@ func main() {
 
 			ctx := context.Background()
 
+			// function := func() {
+			// 	response, err := client.Services.KV.StrLn(ctx, &pb.KeyRequest{Key: command[1]})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
+			// 	fmt.Printf("%s\n", response.GetValue())
+			// }
+
 			function := func() {
-				response, err := client.Services.KV.StrLn(ctx, &pb.KeyRequest{Key: command[1]})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.StrLn(ctx, &pb.KeyRequest{Key: command[1]})
+					if err != nil {
+						fmt.Println("Response Error %v", err)
+					}
+					return response
 				}
+				response := RedirectHanlder(address, handler)
 				fmt.Printf("%s\n", response.GetValue())
 			}
 
@@ -183,11 +196,23 @@ func main() {
 
 			ctx := context.Background()
 
+			// function := func() {
+			// 	response, err := client.Services.KV.Del(ctx, &pb.KeyRequest{Key: command[1]})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
+			// 	fmt.Printf("\"%s\"\n", response.GetValue())
+			// }
 			function := func() {
-				response, err := client.Services.KV.Del(ctx, &pb.KeyRequest{Key: command[1]})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.Del(ctx, &pb.KeyRequest{Key: command[1]})
+					if err != nil {
+						fmt.Println("Response Error %v", err)
+					}
+					return response
 				}
+				response := RedirectHanlder(address, handler)
 				fmt.Printf("\"%s\"\n", response.GetValue())
 			}
 
@@ -205,12 +230,24 @@ func main() {
 
 			ctx := context.Background()
 
+			// function := func() {
+			// 	response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+			// 	if err != nil {
+			// 		log.Fatalf("Response Error %v", err)
+			// 	}
+			// 	fmt.Printf("\"%s\"\n", response.GetValue())
+			// }
 			function := func() {
-				response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
-				if err != nil {
-					log.Fatalf("Response Error %v", err)
+				handler := func(address Address) *pb.Response {
+					client.SetAddress(&address)
+					response, err := client.Services.KV.Append(ctx, &pb.KeyValueRequest{Key: command[1], Value: command[2]})
+					if err != nil {
+						fmt.Println("Response Error %v", err)
+					}
+					return response
 				}
-				fmt.Printf("\"%s\"\n", response.GetValue())
+				RedirectHanlder(address, handler)
+				fmt.Printf("OK\n")
 			}
 
 			if enableTime {
@@ -271,7 +308,6 @@ func RedirectHanlder(address *Address, function func(Address) *pb.Response) *pb.
 	}
 
 	for response.Status.String() == pb.STATUS_REDIRECTED.String() {
-		fmt.Println("REDIRECT")
 		response = function(Address{Address: response.RedirectAddress})
 	}
 

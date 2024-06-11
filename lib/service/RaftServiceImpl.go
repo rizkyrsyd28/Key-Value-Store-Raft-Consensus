@@ -146,7 +146,9 @@ func (rs *RaftServiceImpl) RequestVote(ctx context.Context, request *pb.RequestV
 
 func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
 	rs.node.ResetElectionTimer()
-	rs.node.ClusterLeaderAddress = &Address{Address: request.Sender}
+	fmt.Println(request.Sender)
+	rs.node.ClusterLeaderAddress = &Address{Address: &pb.Address{IP: request.Sender.IP, Port: request.Sender.Port}}
+	// rs.node.ClusterLeaderAddress = NewAddress(request.LeaderAddress.IP, fmt.Sprint(request.LeaderAddress.Port))
 	response, err := rs.node.Heartbeat(ctx, request)
 
 	if err != nil {
@@ -158,6 +160,8 @@ func (rs *RaftServiceImpl) SendHeartbeat(ctx context.Context, request *pb.Heartb
 	// 	Term:          1,
 	// 	SuccessAppend: true,
 	// }
+
+	fmt.Printf("\n%s\n", rs.node.ClusterLeaderAddress.ToString())
 
 	return response, nil
 }
